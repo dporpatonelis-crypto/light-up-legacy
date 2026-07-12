@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Interpretive Sculpture Pattern — VR Prototype v5</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { overflow: hidden; background: #0a0a0f; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+#vr-canvas { width: 100vw; height: 100vh; display: block; }
+
+#hud { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+#hud > * { pointer-events: auto; }
+
+.hud-panel {
+  background: rgba(10, 15, 30, 0.92);
+  border: 1px solid rgba(100, 180, 255, 0.25);
+  border-radius: 12px;
+  padding: 12px;
+  backdrop-filter: blur(10px);
+}
+
+.hud-title {
+  color: #aaccff;
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.hud-text { color: #8899aa; font-size: 11px; line-height: 1.6; }
+
+#top-bar {
+  position: absolute; top: 16px; left: 50%; transform: translateX(-50%);
+  text-align: center; padding: 10px 28px;
+}
+#top-bar .main-title { color: #aaccff; font-size: 14px; letter-spacing: 2px; text-transform: uppercase; }
+#top-bar .sub-title { color: #667788; font-size: 11px; margin-top: 2px; }
+
+#legend { position: absolute; top: 80px; left: 16px; min-width: 170px; }
+#legend-items { display: flex; flex-direction: column; gap: 5px; }
+.legend-item { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 4px 6px; border-radius: 4px; transition: background 0.2s; }
+.legend-item:hover { background: rgba(100, 180, 255, 0.1); }
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 6px currentColor; flex-shrink: 0; }
+.legend-label { color: #aabbcc; font-size: 11px; }
+
+#contrib-panel { position: absolute; top: 80px; right: 16px; width: 300px; display: none; }
+#contrib-panel .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+#contrib-panel .region-name { color: #ffcc66; font-size: 14px; font-weight: 600; }
+#contrib-panel .close-btn { background: none; border: none; color: #8899aa; cursor: pointer; font-size: 18px; line-height: 1; }
+#contrib-panel .section-label { color: #8899aa; font-size: 11px; margin: 8px 0 4px; }
+#contrib-panel textarea, #contrib-panel input[type="text"] {
+  width: 100%; background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(100, 180, 255, 0.2);
+  border-radius: 6px; color: #ddeeff; padding: 8px; font-size: 12px; font-family: inherit;
+}
+#contrib-panel textarea { height: 70px; resize: none; }
+#contrib-panel input[type="text"] { margin-bottom: 8px; }
+
+.cat-buttons { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; }
+.cat-btn {
+  background: rgba(100, 80, 200, 0.2); border: 1px solid rgba(100, 80, 200, 0.4);
+  color: #bbaaff; border-radius: 4px; padding: 4px 10px; font-size: 10px; cursor: pointer; transition: all 0.2s;
+}
+.cat-btn:hover, .cat-btn.active { background: rgba(100, 80, 200, 0.4); border-color: rgba(100, 80, 200, 0.7); }
+.cat-btn[data-cat="ethical"] { border-color: rgba(80, 160, 100, 0.4); color: #aaffbb; background: rgba(80, 160, 100, 0.2); }
+.cat-btn[data-cat="ethical"]:hover, .cat-btn[data-cat="ethical"].active { background: rgba(80, 160, 100, 0.4); border-color: rgba(80, 160, 100, 0.7); }
+.cat-btn[data-cat="historical"] { border-color: rgba(200, 140, 60, 0.4); color: #ffddaa; background: rgba(200, 140, 60, 0.2); }
+.cat-btn[data-cat="historical"]:hover, .cat-btn[data-cat="historical"].active { background: rgba(200, 140, 60, 0.4); border-color: rgba(200, 140, 60, 0.7); }
+.cat-btn[data-cat="philosophical"] { border-color: rgba(60, 140, 200, 0.4); color: #aaddff; background: rgba(60, 140, 200, 0.2); }
+.cat-btn[data-cat="philosophical"]:hover, .cat-btn[data-cat="philosophical"].active { background: rgba(60, 140, 200, 0.4); border-color: rgba(60, 140, 200, 0.7); }
+
+.submit-btn {
+  width: 100%; background: linear-gradient(135deg, #1a3a5c, #2a5a8c); border: none;
+  border-radius: 6px; color: #fff; padding: 10px; font-size: 12px; cursor: pointer;
+  letter-spacing: 1px; margin-top: 6px; transition: all 0.2s;
+}
+.submit-btn:hover { background: linear-gradient(135deg, #2a5a8c, #3a7abc); }
+
+#stats { position: absolute; bottom: 16px; left: 16px; }
+#stats .stat-value { color: #ffcc66; }
+#stats .stat-value.green { color: #66ffaa; }
+#stats .stat-value.orange { color: #ffaa66; }
+
+#controls { position: absolute; bottom: 16px; right: 16px; max-width: 220px; }
+#controls b { color: #aabbcc; }
+
+#tooltip {
+  position: absolute; background: rgba(0, 0, 0, 0.85); border: 1px solid rgba(100, 180, 255, 0.4);
+  border-radius: 6px; padding: 6px 12px; color: #aaddff; font-size: 12px;
+  pointer-events: none; opacity: 0; transition: opacity 0.2s; z-index: 100;
+}
+
+#vr-btn-container { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); }
+#vr-btn {
+  background: linear-gradient(135deg, #1a3a5c, #2a5a8c); border: 1px solid rgba(100, 180, 255, 0.4);
+  border-radius: 8px; color: #aaddff; padding: 10px 24px; font-size: 13px; cursor: pointer;
+  letter-spacing: 1px; display: none;
+}
+#vr-btn:hover { background: linear-gradient(135deg, #2a5a8c, #3a7abc); }
+
+/* ===== ASSET PANEL ===== */
+#asset-panel { position: absolute; top: 80px; right: 16px; width: 320px; display: none; }
+#asset-panel .asset-list { max-height: 200px; overflow-y: auto; margin: 8px 0; }
+.asset-item { display: flex; align-items: center; gap: 6px; padding: 6px 8px; background: rgba(0,0,0,0.3); border-radius: 6px; margin-bottom: 4px; font-size: 11px; color: #aabbcc; }
+.asset-item .asset-type { color: #ffcc66; font-weight: 600; min-width: 36px; }
+.asset-item .asset-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.asset-item .asset-btn { background: rgba(200,60,60,0.3); border: 1px solid rgba(200,60,60,0.5); color: #ff9999; border-radius: 4px; padding: 2px 8px; font-size: 10px; cursor: pointer; }
+.asset-item .asset-btn.edit { background: rgba(60,140,200,0.3); border-color: rgba(60,140,200,0.5); color: #aaddff; }
+
+.file-input-wrapper { position: relative; overflow: hidden; display: inline-block; width: 100%; }
+.file-input-wrapper input[type=file] { position: absolute; left: 0; top: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+.file-input-btn { display: block; width: 100%; background: linear-gradient(135deg, #2a1a3c, #3a2a5c); border: 1px dashed rgba(180, 140, 255, 0.4); border-radius: 6px; color: #ccbbff; padding: 10px; font-size: 12px; text-align: center; cursor: pointer; transition: all 0.2s; }
+.file-input-btn:hover { background: linear-gradient(135deg, #3a2a5c, #4a3a7c); border-color: rgba(180, 140, 255, 0.7); }
+
+/* ===== ASSET EDIT PANEL ===== */
+#asset-edit-panel { position: absolute; top: 80px; right: 340px; width: 220px; display: none; }
+.edit-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.edit-row label { color: #8899aa; font-size: 10px; width: 50px; flex-shrink: 0; }
+.edit-row input[type="range"] { flex: 1; accent-color: #44aaff; }
+.edit-row input[type="number"] { width: 50px; background: rgba(0,0,0,0.4); border: 1px solid rgba(100,180,255,0.2); border-radius: 4px; color: #ddeeff; padding: 3px 6px; font-size: 11px; }
+.edit-row .value-display { color: #aaddff; font-size: 10px; min-width: 30px; text-align: right; }
+
+.anim-buttons { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 8px; }
+.anim-btn { background: rgba(60, 140, 200, 0.2); border: 1px solid rgba(60, 140, 200, 0.4); color: #aaddff; border-radius: 4px; padding: 4px 10px; font-size: 10px; cursor: pointer; transition: all 0.2s; }
+.anim-btn:hover, .anim-btn.active { background: rgba(60, 140, 200, 0.4); border-color: rgba(60, 140, 200, 0.7); }
+
+/* ===== JSON PANEL ===== */
+#json-panel { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 500px; max-height: 70vh; display: none; flex-direction: column; }
+#json-panel textarea { width: 100%; height: 300px; background: rgba(0, 0, 0, 0.6); border: 1px solid rgba(100, 180, 255, 0.2); border-radius: 6px; color: #aaddff; padding: 10px; font-size: 11px; font-family: 'Consolas', 'Monaco', monospace; resize: none; margin: 8px 0; }
+.json-btn-row { display: flex; gap: 8px; }
+.json-btn { flex: 1; background: linear-gradient(135deg, #1a3a5c, #2a5a8c); border: none; border-radius: 6px; color: #fff; padding: 8px; font-size: 11px; cursor: pointer; letter-spacing: 1px; }
+.json-btn.secondary { background: linear-gradient(135deg, #3a2a2a, #5a3a3a); }
+.json-btn:hover { opacity: 0.9; }
+
+#toggle-row { position: absolute; top: 16px; right: 16px; display: flex; gap: 8px; }
+.toggle-btn { background: rgba(10, 15, 30, 0.85); border: 1px solid rgba(100, 180, 255, 0.25); border-radius: 8px; color: #aaddff; padding: 8px 14px; font-size: 11px; cursor: pointer; letter-spacing: 1px; transition: all 0.2s; }
+.toggle-btn:hover { background: rgba(20, 40, 70, 0.9); border-color: rgba(100, 180, 255, 0.5); }
+.toggle-btn.active { background: linear-gradient(135deg, #1a3a5c, #2a5a8c); border-color: rgba(100, 180, 255, 0.6); }
+</style>
+</head>
+<body>
+
+<canvas id="vr-canvas"></canvas>
+
+<div id="hud">
+  <div id="top-bar" class="hud-panel">
+    <div class="main-title">🏛️ Interpretive Sculpture Pattern</div>
+    <div class="sub-title">Β2 — Μέγας Βασίλειος — 2026</div>
+  </div>
+
+  <div id="toggle-row">
+    <button class="toggle-btn" id="btn-assets" onclick="togglePanel('asset-panel')">📦 3D Assets</button>
+    <button class="toggle-btn" id="btn-json" onclick="toggleJsonPanel()">📋 JSON</button>
+  </div>
+
+  <div id="legend" class="hud-panel">
+    <div class="hud-title">Περιοχές Γλυπτού</div>
+    <div id="legend-items"></div>
+  </div>
+
+  <div id="contrib-panel" class="hud-panel">
+    <div class="header">
+      <span class="region-name" id="contrib-region-name">Κορμός</span>
+      <button class="close-btn" onclick="closePanel('contrib-panel')">×</button>
+    </div>
+    <div class="section-label">Προσθήκη συνεισφοράς με τεκμηρίωση:</div>
+    <textarea id="contrib-text" placeholder="Η ιδέα σου..."></textarea>
+    <div class="section-label">Κατηγορία:</div>
+    <div class="cat-buttons">
+      <button class="cat-btn active" data-cat="theological" onclick="selectCat(this)">Θεολογική</button>
+      <button class="cat-btn" data-cat="ethical" onclick="selectCat(this)">Ηθική</button>
+      <button class="cat-btn" data-cat="historical" onclick="selectCat(this)">Ιστορική</button>
+      <button class="cat-btn" data-cat="philosophical" onclick="selectCat(this)">Φιλοσοφική</button>
+    </div>
+    <div class="section-label">Πηγή (Χρυσός Κανόνας):</div>
+    <input id="contrib-source" type="text" placeholder="Απόσπασμα ή παραπομπή...">
+    <button class="submit-btn" onclick="submitContribution()">✨ ΥΠΟΒΟΛΗ</button>
+  </div>
+
+  <div id="asset-panel" class="hud-panel">
+    <div class="header">
+      <span class="region-name">📦 3D Assets</span>
+      <button class="close-btn" onclick="closePanel('asset-panel')">×</button>
+    </div>
+    <div class="section-label">Φόρτωση αρχείων (GLB, FBX, OBJ):</div>
+    <div class="file-input-wrapper">
+      <div class="file-input-btn">📁 Σύρε ή κάνε click για επιλογή αρχείων</div>
+      <input type="file" id="asset-file-input" accept=".glb,.gltf,.fbx,.obj" multiple onchange="handleAssetUpload(event)">
+    </div>
+    <div class="section-label" style="margin-top:10px;">Φορτωμένα Assets:</div>
+    <div class="asset-list" id="asset-list"></div>
+    <div class="section-label" style="margin-top:10px;">Ή φόρτωση από URL:</div>
+    <input type="text" id="asset-url" placeholder="https://example.com/model.glb" style="width:100%;background:rgba(0,0,0,0.4);border:1px solid rgba(100,180,255,0.2);border-radius:6px;color:#ddeeff;padding:6px 8px;font-size:11px;margin-bottom:6px;">
+    <button class="submit-btn" onclick="loadAssetFromURL()">🔗 ΦΟΡΤΩΣΗ URL</button>
+  </div>
+
+  <div id="asset-edit-panel" class="hud-panel">
+    <div class="header">
+      <span class="region-name" id="edit-asset-name" style="font-size:12px;">Asset</span>
+      <button class="close-btn" onclick="closePanel('asset-edit-panel')">×</button>
+    </div>
+    <div class="section-label">Μέγεθος & Θέση</div>
+    <div class="edit-row"><label>Scale</label><input type="range" id="edit-scale" min="0.1" max="5" step="0.1" value="1" oninput="updateAssetEdit()"><span class="value-display" id="val-scale">1.0</span></div>
+    <div class="edit-row"><label>X</label><input type="range" id="edit-x" min="-10" max="10" step="0.5" value="4" oninput="updateAssetEdit()"><span class="value-display" id="val-x">4.0</span></div>
+    <div class="edit-row"><label>Z</label><input type="range" id="edit-z" min="-10" max="10" step="0.5" value="0" oninput="updateAssetEdit()"><span class="value-display" id="val-z">0.0</span></div>
+    <div class="edit-row"><label>Y</label><input type="range" id="edit-y" min="0" max="5" step="0.1" value="0.2" oninput="updateAssetEdit()"><span class="value-display" id="val-y">0.2</span></div>
+    <div class="edit-row"><label>RotY</label><input type="range" id="edit-rot" min="0" max="360" step="5" value="0" oninput="updateAssetEdit()"><span class="value-display" id="val-rot">0°</span></div>
+    <div class="section-label" style="margin-top:8px;">Animation</div>
+    <div class="anim-buttons">
+      <button class="anim-btn active" id="anim-idle" onclick="setAnim('idle')">🌙 Idle</button>
+      <button class="anim-btn" id="anim-float" onclick="setAnim('float')">🌊 Float</button>
+      <button class="anim-btn" id="anim-spin" onclick="setAnim('spin')">🔄 Spin</button>
+      <button class="anim-btn" id="anim-breathe" onclick="setAnim('breathe')">🫁 Breathe</button>
+      <button class="anim-btn" id="anim-none" onclick="setAnim('none')">⏸️ Stop</button>
+    </div>
+  </div>
+
+  <div id="json-panel" class="hud-panel">
+    <div class="header">
+      <span class="region-name">📋 Import / Export JSON</span>
+      <button class="close-btn" onclick="closePanel('json-panel')">×</button>
+    </div>
+    <div class="section-label">Template JSON (επεξεργάσιμο):</div>
+    <textarea id="json-editor" spellcheck="false"></textarea>
+    <div class="json-btn-row">
+      <button class="json-btn" onclick="exportJSON()">📤 ΕΞΑΓΩΓΗ</button>
+      <button class="json-btn secondary" onclick="importJSON()">📥 ΕΙΣΑΓΩΓΗ</button>
+      <button class="json-btn secondary" onclick="downloadJSON()">💾 ΑΠΟΘΗΚΕΥΣΗ</button>
+    </div>
+  </div>
+
+  <div id="stats" class="hud-panel">
+    <div class="hud-title">📊 Συλλογική Μνήμη</div>
+    <div class="hud-text">
+      Συνεισφορές: <span class="stat-value" id="total-contrib">0</span><br>
+      Ισχυρή τεκμηρίωση: <span class="stat-value green" id="strong-docs">0</span><br>
+      Λάμψη γλυπτού: <span class="stat-value orange" id="glow-level">0%</span><br>
+      3D Assets: <span class="stat-value" id="asset-count">0</span>
+    </div>
+  </div>
+
+  <div id="controls" class="hud-panel">
+    <div class="hud-title">🎮 Έλεγχοι</div>
+    <div class="hud-text">
+      🖱️ <b>Drag</b>: Περιστροφή<br>
+      🖱️ <b>Scroll</b>: Zoom<br>
+      👆 <b>Click</b>: Επιλογή περιοχής / Asset<br>
+      🥽 <b>VR</b>: Enter VR<br>
+      ⌨️ <b>Space</b>: Auto-rotate<br>
+      🗑️ <b>Del</b>: Διαγραφή asset<br>
+      ⚙️ <b>Διπλό click asset</b>: Edit panel
+    </div>
+  </div>
+
+  <div id="vr-btn-container">
+    <button id="vr-btn" onclick="enterVR()">🥽 ΕΙΣΟΔΟΣ ΣΕ VR</button>
+  </div>
+</div>
+
+<div id="tooltip"></div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
+
+// ========== STATE ==========
+const state = {
+  selectedRegion: null, selectedCategory: 'theological',
+  contributions: [], autoRotate: false, hoveredRegion: null,
+  selectedAsset: null, assets: []
+};
+
+const regionsData = {
+  base:     { name: 'Βάση',         color: 0x5a4a3a, emissive: 0x1a1510, contributions: 0, docStrength: 0, category: null, label: 'Τα θεμέλια της έννοιας' },
+  trunk:    { name: 'Κορμός',       color: 0x6b5a4a, emissive: 0x1a1810, contributions: 0, docStrength: 0, category: null, label: 'Το κύριο σώμα δεδομένων' },
+  arms:     { name: 'Χέρια',        color: 0x7a6a5a, emissive: 0x1a1a10, contributions: 0, docStrength: 0, category: null, label: 'Η δράση και η εφαρμογή' },
+  head:     { name: 'Κεφαλή',       color: 0x8a7a6a, emissive: 0x1a1a15, contributions: 0, docStrength: 0, category: null, label: 'Το ανώτερο νόημα (Θεολογία)' },
+  periphery:{ name: 'Περιφέρεια',   color: 0x4a5a6a, emissive: 0x10151a, contributions: 0, docStrength: 0, category: null, label: 'Το ιστορικό πλαίσιο' },
+  core:     { name: 'Εσωτ. Πυρήνας', color: 0xffaa44, emissive: 0x331100, contributions: 0, docStrength: 0, category: null, label: 'Η ουσία και η κινητήριος δύναμη' }
+};
+
+const categoryColors = {
+  theological: 0x8866ff, ethical: 0x66ff88, historical: 0xffaa44, philosophical: 0x44aaff
+};
+
+// ========== SCENE SETUP ==========
+const canvas = document.getElementById('vr-canvas');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.xr.enabled = true;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.2;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0a0a12);
+scene.fog = new THREE.FogExp2(0x0a0a12, 0.015);
+
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
+camera.position.set(0, 3, 8);
+
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true; controls.dampingFactor = 0.05;
+controls.maxPolarAngle = Math.PI * 0.85; controls.minDistance = 2; controls.maxDistance = 20;
+controls.target.set(0, 2.5, 0);
+
+// ========== LIGHTING ==========
+const ambientLight = new THREE.AmbientLight(0x1a1a2e, 0.4); scene.add(ambientLight);
+const mainLight = new THREE.DirectionalLight(0xaaddff, 1.5);
+mainLight.position.set(5, 10, 5); mainLight.castShadow = true;
+mainLight.shadow.mapSize.width = 2048; mainLight.shadow.mapSize.height = 2048;
+scene.add(mainLight);
+const rimLight = new THREE.DirectionalLight(0xffaa66, 0.5);
+rimLight.position.set(-5, 5, -5); scene.add(rimLight);
+const fillLight = new THREE.DirectionalLight(0x4466aa, 0.3);
+fillLight.position.set(0, -3, 5); scene.add(fillLight);
+
+const regionLights = {};
+Object.keys(regionsData).forEach(key => {
+  const light = new THREE.PointLight(regionsData[key].color, 0, 8);
+  light.position.set(0, 0, 0); scene.add(light); regionLights[key] = light;
+});
+
+// ========== SCULPTURE ==========
+const sculptureGroup = new THREE.Group(); scene.add(sculptureGroup);
+const regionMeshes = {};
+
+function createMaterial(baseColor, emissiveColor) {
+  return new THREE.MeshStandardMaterial({ color: baseColor, emissive: emissiveColor, emissiveIntensity: 0.15, roughness: 0.75, metalness: 0.25 });
+}
+
+// 1. BASE
+const baseGroup = new THREE.Group();
+const baseStep1 = new THREE.Mesh(new THREE.CylinderGeometry(2.0, 2.3, 0.3, 8), createMaterial(regionsData.base.color, regionsData.base.emissive));
+baseStep1.position.y = 0.15; baseStep1.castShadow = true; baseStep1.receiveShadow = true; baseStep1.userData = { region: 'base' }; baseGroup.add(baseStep1);
+const baseStep2 = new THREE.Mesh(new THREE.CylinderGeometry(1.7, 2.0, 0.4, 8), createMaterial(regionsData.base.color, regionsData.base.emissive));
+baseStep2.position.y = 0.5; baseStep2.castShadow = true; baseStep2.receiveShadow = true; baseStep2.userData = { region: 'base' }; baseGroup.add(baseStep2);
+sculptureGroup.add(baseGroup); regionMeshes.base = baseGroup;
+
+// 2. TRUNK
+const trunkMesh = new THREE.Mesh(new THREE.CylinderGeometry(1.0, 1.5, 2.8, 8), createMaterial(regionsData.trunk.color, regionsData.trunk.emissive));
+trunkMesh.position.y = 2.1; trunkMesh.castShadow = true; trunkMesh.userData = { region: 'trunk' }; sculptureGroup.add(trunkMesh); regionMeshes.trunk = trunkMesh;
+
+// 3. ARMS
+const armMat = createMaterial(regionsData.arms.color, regionsData.arms.emissive);
+const leftArm = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 1.0, 4, 8), armMat);
+leftArm.position.set(-1.3, 2.6, 0); leftArm.rotation.z = Math.PI / 3.5; leftArm.castShadow = true; leftArm.userData = { region: 'arms' }; sculptureGroup.add(leftArm);
+const rightArm = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 1.0, 4, 8), armMat.clone());
+rightArm.position.set(1.3, 2.6, 0); rightArm.rotation.z = -Math.PI / 3.5; rightArm.castShadow = true; rightArm.userData = { region: 'arms' }; sculptureGroup.add(rightArm);
+regionMeshes.arms = [leftArm, rightArm];
+
+// 4. HEAD
+const headMesh = new THREE.Mesh(new THREE.SphereGeometry(0.9, 32, 32), createMaterial(regionsData.head.color, regionsData.head.emissive));
+headMesh.position.y = 4.3; headMesh.castShadow = true; headMesh.userData = { region: 'head' }; sculptureGroup.add(headMesh); regionMeshes.head = headMesh;
+const halo = new THREE.Mesh(new THREE.TorusGeometry(1.2, 0.04, 8, 32), new THREE.MeshBasicMaterial({ color: 0xffcc66, transparent: true, opacity: 0.25 }));
+halo.position.y = 4.6; halo.rotation.x = Math.PI / 2; sculptureGroup.add(halo);
+
+// 5. PERIPHERY
+const peripheryGroup = new THREE.Group(); sculptureGroup.add(peripheryGroup);
+const ringMat = new THREE.MeshStandardMaterial({ color: regionsData.periphery.color, emissive: regionsData.periphery.emissive, emissiveIntensity: 0.25, transparent: true, opacity: 0.5, roughness: 0.2, metalness: 0.8 });
+const ring1 = new THREE.Mesh(new THREE.TorusGeometry(2.6, 0.06, 8, 64), ringMat); ring1.rotation.x = Math.PI / 2; peripheryGroup.add(ring1);
+const ring2 = new THREE.Mesh(new THREE.TorusGeometry(2.6, 0.06, 8, 64), ringMat.clone()); ring2.rotation.x = Math.PI / 2.3; ring2.rotation.y = Math.PI / 6; ring2.scale.set(1.15, 1.15, 1.15); peripheryGroup.add(ring2);
+const ring3 = new THREE.Mesh(new THREE.TorusGeometry(2.6, 0.06, 8, 64), ringMat.clone()); ring3.rotation.x = Math.PI / 1.7; ring3.rotation.z = Math.PI / 4; ring3.scale.set(0.85, 0.85, 0.85); peripheryGroup.add(ring3);
+peripheryGroup.position.y = 2.5; regionMeshes.periphery = peripheryGroup;
+
+// 6. CORE
+const coreMat = new THREE.MeshStandardMaterial({ color: regionsData.core.color, emissive: regionsData.core.emissive, emissiveIntensity: 1.5, transparent: true, opacity: 0.65, roughness: 0.1, metalness: 0.9 });
+const coreMesh = new THREE.Mesh(new THREE.SphereGeometry(0.5, 16, 16), coreMat);
+coreMesh.position.y = 2.5; sculptureGroup.add(coreMesh); regionMeshes.core = coreMesh;
+const coreLight = new THREE.PointLight(0xffaa44, 1.5, 5); coreLight.position.y = 2.5; sculptureGroup.add(coreLight);
+
+// Inscriptions
+const inscriptions = [];
+function addInscription(text, position, region) {
+  const c = document.createElement('canvas'); c.width = 512; c.height = 64;
+  const ctx = c.getContext('2d'); ctx.fillStyle = 'rgba(0,0,0,0)'; ctx.fillRect(0, 0, 512, 64);
+  ctx.font = 'bold 20px "Segoe UI", sans-serif'; ctx.fillStyle = 'rgba(200, 220, 255, 0.8)'; ctx.textAlign = 'center';
+  ctx.fillText(text, 256, 40);
+  const texture = new THREE.CanvasTexture(c);
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true }));
+  sprite.position.copy(position); sprite.scale.set(2.0, 0.25, 1); sprite.userData = { region, text, isInscription: true };
+  sculptureGroup.add(sprite); inscriptions.push(sprite);
+}
+addInscription('"Ο Θεός εστί φως"', new THREE.Vector3(0, 0.3, 2.5), 'base');
+addInscription('"Μαιευτική μέθοδος"', new THREE.Vector3(0, 4.3, 1.4), 'head');
+
+// ========== ENVIRONMENT ==========
+const floor = new THREE.Mesh(new THREE.CircleGeometry(20, 64), new THREE.MeshStandardMaterial({ color: 0x0a0a15, roughness: 0.9, metalness: 0.1 }));
+floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+const grid = new THREE.GridHelper(25, 25, 0x1a1a2e, 0x0d0d18); grid.position.y = 0.01; scene.add(grid);
+const particleCount = 250;
+const particleGeo = new THREE.BufferGeometry();
+const positions = new Float32Array(particleCount * 3);
+for (let i = 0; i < particleCount * 3; i++) positions[i] = (Math.random() - 0.5) * 25;
+particleGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+const particles = new THREE.Points(particleGeo, new THREE.PointsMaterial({ color: 0x88aaff, size: 0.03, transparent: true, opacity: 0.35 }));
+scene.add(particles);
+
+// ========== RAYCASTER ==========
+const raycaster = new THREE.Raycaster(); const mouse = new THREE.Vector2();
+function getAllClickableMeshes() {
+  const meshes = [];
+  Object.values(regionMeshes).forEach(m => {
+    if (Array.isArray(m)) meshes.push(...m);
+    else if (m.isGroup) m.traverse(c => { if (c.isMesh) meshes.push(c); });
+    else meshes.push(m);
+  });
+  state.assets.forEach(asset => { asset.mesh.traverse(c => { if (c.isMesh) meshes.push(c); }); });
+  return meshes;
+}
+
+// ========== INTERACTION ==========
+function onPointerMove(e) {
+  const rect = canvas.getBoundingClientRect();
+  mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+  mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(mouse, camera);
+  const intersects = raycaster.intersectObjects(getAllClickableMeshes());
+  const tooltip = document.getElementById('tooltip');
+  if (intersects.length > 0) {
+    const obj = intersects[0].object;
+    if (obj.userData.region && regionsData[obj.userData.region]) {
+      state.hoveredRegion = obj.userData.region; state.hoveredAsset = null;
+      canvas.style.cursor = 'pointer'; tooltip.textContent = regionsData[obj.userData.region].label;
+      tooltip.style.left = e.clientX + 12 + 'px'; tooltip.style.top = (e.clientY - 30) + 'px'; tooltip.style.opacity = '1';
+    } else if (obj.userData.assetId !== undefined) {
+      const asset = state.assets.find(a => a.id === obj.userData.assetId);
+      state.hoveredRegion = null; state.hoveredAsset = asset;
+      canvas.style.cursor = 'pointer'; tooltip.textContent = `📦 ${asset ? asset.name : '3D Asset'}`;
+      tooltip.style.left = e.clientX + 12 + 'px'; tooltip.style.top = (e.clientY - 30) + 'px'; tooltip.style.opacity = '1';
+    } else { clearHover(); }
+  } else { clearHover(); }
+}
+function clearHover() { state.hoveredRegion = null; state.hoveredAsset = null; canvas.style.cursor = 'default'; document.getElementById('tooltip').style.opacity = '0'; }
+
+let lastClickTime = 0;
+function onClick(e) {
+  const now = Date.now(); const isDoubleClick = now - lastClickTime < 300; lastClickTime = now;
+  if (state.hoveredRegion) { state.selectedRegion = state.hoveredRegion; openPanel('contrib-panel'); document.getElementById('contrib-region-name').textContent = regionsData[state.hoveredRegion].name; }
+  else if (state.hoveredAsset) { selectAsset(state.hoveredAsset.id); if (isDoubleClick) openAssetEditPanel(state.hoveredAsset); }
+}
+function onKeyDown(e) {
+  if (e.code === 'Space') { state.autoRotate = !state.autoRotate; controls.autoRotate = state.autoRotate; controls.autoRotateSpeed = 1; }
+  if (e.code === 'Delete' || e.code === 'Backspace') { if (state.selectedAsset) removeAsset(state.selectedAsset); }
+}
+window.addEventListener('pointermove', onPointerMove);
+window.addEventListener('click', onClick);
+window.addEventListener('keydown', onKeyDown);
+window.addEventListener('resize', () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
+
+// ========== UI FUNCTIONS ==========
+window.closePanel = function(id) { document.getElementById(id).style.display = 'none'; if (id === 'contrib-panel') state.selectedRegion = null; if (id === 'asset-edit-panel') state.selectedAsset = null; };
+window.togglePanel = function(id) {
+  const panel = document.getElementById(id); const isVisible = panel.style.display === 'block';
+  ['contrib-panel', 'asset-panel', 'json-panel', 'asset-edit-panel'].forEach(pid => { document.getElementById(pid).style.display = 'none'; });
+  if (!isVisible) panel.style.display = 'block';
+};
+window.openPanel = function(id) { ['contrib-panel', 'asset-panel', 'json-panel', 'asset-edit-panel'].forEach(pid => { if (pid !== id) document.getElementById(pid).style.display = 'none'; }); document.getElementById(id).style.display = 'block'; };
+window.selectCat = function(btn) { document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); state.selectedCategory = btn.dataset.cat; };
+
+window.submitContribution = function() {
+  const text = document.getElementById('contrib-text').value.trim();
+  const source = document.getElementById('contrib-source').value.trim();
+  const region = state.selectedRegion; if (!text || !region) return;
+  const hasSource = source.length > 5;
+  const docScore = hasSource ? Math.min(source.length / 10, 10) : 1;
+  const contribution = { id: Date.now(), region, text, source: source || '(χωρίς πηγή — αδύναμη τεκμηρίωση)', category: state.selectedCategory, docScore, timestamp: new Date().toISOString() };
+  state.contributions.push(contribution);
+  const rd = regionsData[region]; rd.contributions++; rd.docStrength += docScore; rd.category = state.selectedCategory;
+  applyVisualUpdate(region);
+  if (hasSource) {
+    const mesh = regionMeshes[region]; let pos;
+    if (Array.isArray(mesh)) pos = mesh[0].position.clone().add(new THREE.Vector3(0, 0.6, 0));
+    else if (mesh.isGroup) pos = new THREE.Vector3(0, 0.5, 2.5);
+    else pos = mesh.position.clone().add(new THREE.Vector3(0, 1.0, 0));
+    addInscription(`"${source.substring(0, 28)}${source.length > 28 ? '...' : ''}"`, pos, region);
+  }
+  updateStats(); updateLegend(); closePanel('contrib-panel');
+};
+
+function applyVisualUpdate(region) {
+  const rd = regionsData[region]; const catColor = categoryColors[rd.category] || rd.color;
+  const updateMesh = (mesh) => { if (!mesh.material) return; mesh.material = mesh.material.clone(); mesh.material.color.setHex(catColor); const glowIntensity = Math.min(rd.docStrength / 20, 3); mesh.material.emissive.setHex(catColor); mesh.material.emissiveIntensity = glowIntensity; };
+  const mesh = regionMeshes[region];
+  if (Array.isArray(mesh)) mesh.forEach(updateMesh);
+  else if (mesh.isGroup) mesh.traverse(c => { if (c.isMesh) updateMesh(c); });
+  else updateMesh(mesh);
+  if (regionLights[region]) { regionLights[region].color.setHex(catColor); regionLights[region].intensity = Math.min(rd.contributions * 0.5, 3); }
+  if (rd.docStrength > 5) pulseCore();
+}
+function pulseCore() {
+  const startIntensity = coreMesh.material.emissiveIntensity; let t = 0;
+  const interval = setInterval(() => { t += 0.1; coreMesh.material.emissiveIntensity = startIntensity + Math.sin(t * 3) * 2; coreLight.intensity = 1.5 + Math.sin(t * 3) * 2;
+    if (t > Math.PI * 2) { clearInterval(interval); coreMesh.material.emissiveIntensity = Math.min(startIntensity + 0.5, 5); coreLight.intensity = Math.min(1.5 + regionsData.core.docStrength / 5, 6); }
+  }, 50);
+}
+function updateStats() { const total = state.contributions.length; const strong = state.contributions.filter(c => c.docScore > 5).length; const glow = Math.min(total * 8, 100); document.getElementById('total-contrib').textContent = total; document.getElementById('strong-docs').textContent = strong; document.getElementById('glow-level').textContent = glow + '%'; document.getElementById('asset-count').textContent = state.assets.length; }
+function updateLegend() { const container = document.getElementById('legend-items'); container.innerHTML = ''; Object.entries(regionsData).forEach(([key, data]) => { const div = document.createElement('div'); div.className = 'legend-item'; div.onclick = () => { state.selectedRegion = key; openPanel('contrib-panel'); document.getElementById('contrib-region-name').textContent = data.name; }; const colorHex = '#' + (data.category ? categoryColors[data.category] : data.color).toString(16).padStart(6, '0'); div.innerHTML = `<div class="legend-dot" style="background:${colorHex};color:${colorHex};"></div><span class="legend-label">${data.name} (${data.contributions})</span>`; container.appendChild(div); }); }
+
+// ========== 3D ASSET MANAGEMENT ==========
+const gltfLoader = new GLTFLoader(); const fbxLoader = new FBXLoader(); const objLoader = new OBJLoader();
+window.handleAssetUpload = function(event) { const files = event.target.files; for (const file of files) { const ext = file.name.split('.').pop().toLowerCase(); const url = URL.createObjectURL(file); loadAsset(url, file.name, ext); } event.target.value = ''; };
+window.loadAssetFromURL = function() { const url = document.getElementById('asset-url').value.trim(); if (!url) return; const ext = url.split('.').pop().toLowerCase().split('?')[0]; loadAsset(url, url.split('/').pop(), ext); document.getElementById('asset-url').value = ''; };
+
+function loadAsset(url, name, ext) {
+  const assetId = Date.now() + Math.random();
+  const angle = (state.assets.length * 0.8) - 0.4;
+  const radius = 3.5 + (state.assets.length * 0.5);
+  const x = Math.cos(angle) * radius; const z = Math.sin(angle) * radius;
+
+  const onLoad = (object) => {
+    let mesh;
+    if (object.scene) mesh = object.scene;
+    else if (object.isObject3D) mesh = object;
+    else mesh = object;
+
+    // Compute bounding box BEFORE any scaling
+    const box = new THREE.Box3().setFromObject(mesh);
+    const size = box.getSize(new THREE.Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const baseScale = 1.5 / maxDim;
+    mesh.scale.set(baseScale, baseScale, baseScale);
+
+    const center = box.getCenter(new THREE.Vector3());
+    mesh.position.set(x, 0.2 - (center.y * baseScale), z);
+
+    // Ensure all meshes cast/receive shadows and have assetId
+    mesh.traverse(c => {
+      if (c.isMesh) {
+        c.userData.assetId = assetId;
+        c.castShadow = true;
+        c.receiveShadow = true;
+        // Ensure materials are visible (not transparent accidentally)
+        if (c.material) {
+          c.material.transparent = c.material.transparent || false;
+          c.material.opacity = c.material.opacity || 1.0;
+          c.material.needsUpdate = true;
+        }
+      }
+    });
+
+    scene.add(mesh);
+
+    // ===== ELEGANT SPOTLIGHT =====
+    const spotLight = new THREE.SpotLight(0xffddaa, 3, 10, Math.PI / 6, 0.5, 1);
+    spotLight.position.set(x, 5, z); spotLight.target = mesh; spotLight.castShadow = true;
+    spotLight.shadow.mapSize.width = 512; spotLight.shadow.mapSize.height = 512;
+    scene.add(spotLight);
+
+    // Subtle ground glow
+    const glowMesh = new THREE.Mesh(new THREE.CircleGeometry(0.8, 32), new THREE.MeshBasicMaterial({ color: 0xffddaa, transparent: true, opacity: 0.08, side: THREE.DoubleSide }));
+    glowMesh.rotation.x = -Math.PI / 2; glowMesh.position.set(x, 0.02, z); scene.add(glowMesh);
+
+    // ===== BOUNDING BOX OUTLINE (completely separate from mesh) =====
+    const boxSize = new THREE.Vector3();
+    box.getSize(boxSize);
+    const boxCenter = new THREE.Vector3();
+    box.getCenter(boxCenter);
+
+    const outlineGeo = new THREE.BoxGeometry(boxSize.x, boxSize.y, boxSize.z);
+    const edges = new THREE.EdgesGeometry(outlineGeo);
+    const outlineMat = new THREE.LineBasicMaterial({ color: 0x44aaff, transparent: true, opacity: 0 });
+    const outline = new THREE.LineSegments(edges, outlineMat);
+    outline.position.copy(mesh.position);
+    outline.position.y += (boxCenter.y * baseScale);
+    outline.scale.set(baseScale, baseScale, baseScale);
+    outline.userData.isOutline = true;
+    outline.userData.assetId = assetId;
+    scene.add(outline);
+
+    // Label
+    const label = addAssetLabel(name, new THREE.Vector3(x, 2.2, z));
+
+    const asset = {
+      id: assetId, name, type: ext.toUpperCase(), mesh, outline, label,
+      spotLight, glowMesh, url, baseScale,
+      userScale: 1.0, userPos: { x, y: 0.2, z }, userRot: 0, anim: 'idle',
+      boxSize, boxCenter
+    };
+    state.assets.push(asset); updateStats(); updateAssetList();
+  };
+
+  const onError = (err) => { console.error('Asset load error:', err); alert(`Σφάλμα φόρτωσης: ${name}\n\nΒεβαιώσου ότι το αρχείο είναι έγκυρο GLB/FBX/OBJ.`); };
+  if (ext === 'glb' || ext === 'gltf') gltfLoader.load(url, onLoad, undefined, onError);
+  else if (ext === 'fbx') fbxLoader.load(url, onLoad, undefined, onError);
+  else if (ext === 'obj') objLoader.load(url, onLoad, undefined, onError);
+  else alert(`Μη υποστηριζόμενη μορφή: ${ext}`);
+}
+
+function addAssetLabel(text, position) {
+  const c = document.createElement('canvas'); c.width = 512; c.height = 48;
+  const ctx = c.getContext('2d'); ctx.fillStyle = 'rgba(0,0,0,0)'; ctx.fillRect(0, 0, 512, 48);
+  ctx.font = 'bold 18px "Segoe UI", sans-serif'; ctx.fillStyle = 'rgba(180, 210, 255, 0.85)'; ctx.textAlign = 'center';
+  ctx.fillText(text, 256, 32);
+  const texture = new THREE.CanvasTexture(c);
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true }));
+  sprite.position.copy(position); sprite.scale.set(2.5, 0.23, 1); scene.add(sprite); return sprite;
+}
+
+function selectAsset(assetId) {
+  state.assets.forEach(a => { a.outline.material.opacity = 0; });
+  const asset = state.assets.find(a => a.id === assetId);
+  if (asset) { state.selectedAsset = asset; asset.outline.material.opacity = 0.7; }
+}
+
+window.removeAsset = function(asset) {
+  if (!asset) return;
+  scene.remove(asset.mesh); scene.remove(asset.outline); scene.remove(asset.label);
+  scene.remove(asset.spotLight); scene.remove(asset.glowMesh);
+  state.assets = state.assets.filter(a => a.id !== asset.id);
+  state.selectedAsset = null; updateStats(); updateAssetList(); closePanel('asset-edit-panel');
+};
+
+function updateAssetList() { const container = document.getElementById('asset-list'); container.innerHTML = ''; state.assets.forEach(asset => { const div = document.createElement('div'); div.className = 'asset-item'; div.innerHTML = `<span class="asset-type">${asset.type}</span><span class="asset-name">${asset.name}</span><button class="asset-btn edit" onclick="openAssetEditById(${asset.id})">⚙️</button><button class="asset-btn" onclick="removeAssetById(${asset.id})">🗑️</button>`; container.appendChild(div); }); }
+window.openAssetEditById = function(id) { const asset = state.assets.find(a => a.id === id); if (asset) openAssetEditPanel(asset); };
+
+window.openAssetEditPanel = function(asset) {
+  state.selectedAsset = asset; selectAsset(asset.id);
+  document.getElementById('edit-asset-name').textContent = asset.name;
+  document.getElementById('edit-scale').value = asset.userScale; document.getElementById('val-scale').textContent = asset.userScale.toFixed(1);
+  document.getElementById('edit-x').value = asset.userPos.x; document.getElementById('val-x').textContent = asset.userPos.x.toFixed(1);
+  document.getElementById('edit-z').value = asset.userPos.z; document.getElementById('val-z').textContent = asset.userPos.z.toFixed(1);
+  document.getElementById('edit-y').value = asset.userPos.y; document.getElementById('val-y').textContent = asset.userPos.y.toFixed(1);
+  document.getElementById('edit-rot').value = (asset.userRot * 180 / Math.PI); document.getElementById('val-rot').textContent = Math.round(asset.userRot * 180 / Math.PI) + '°';
+  document.querySelectorAll('.anim-btn').forEach(b => b.classList.remove('active'));
+  const animBtn = document.getElementById('anim-' + (asset.anim || 'idle')); if (animBtn) animBtn.classList.add('active');
+  openPanel('asset-edit-panel');
+};
+
+window.updateAssetEdit = function() {
+  const asset = state.selectedAsset; if (!asset) return;
+  asset.userScale = parseFloat(document.getElementById('edit-scale').value);
+  asset.userPos.x = parseFloat(document.getElementById('edit-x').value);
+  asset.userPos.z = parseFloat(document.getElementById('edit-z').value);
+  asset.userPos.y = parseFloat(document.getElementById('edit-y').value);
+  asset.userRot = parseFloat(document.getElementById('edit-rot').value) * Math.PI / 180;
+  document.getElementById('val-scale').textContent = asset.userScale.toFixed(1);
+  document.getElementById('val-x').textContent = asset.userPos.x.toFixed(1);
+  document.getElementById('val-z').textContent = asset.userPos.z.toFixed(1);
+  document.getElementById('val-y').textContent = asset.userPos.y.toFixed(1);
+  document.getElementById('val-rot').textContent = Math.round(asset.userRot * 180 / Math.PI) + '°';
+  applyAssetTransform(asset);
+};
+
+function applyAssetTransform(asset) {
+  const s = asset.baseScale * asset.userScale;
+  asset.mesh.scale.set(s, s, s);
+  asset.mesh.position.set(asset.userPos.x, asset.userPos.y, asset.userPos.z);
+  asset.mesh.rotation.y = asset.userRot;
+
+  // Update outline to match new transform
+  const outlineS = s;
+  asset.outline.scale.set(outlineS, outlineS, outlineS);
+  asset.outline.position.copy(asset.mesh.position);
+  asset.outline.position.y += (asset.boxCenter.y * s);
+  asset.outline.rotation.y = asset.userRot;
+
+  asset.spotLight.position.set(asset.userPos.x, 5, asset.userPos.z);
+  asset.spotLight.target.position.copy(asset.mesh.position); asset.spotLight.target.updateMatrixWorld();
+  asset.glowMesh.position.set(asset.userPos.x, 0.02, asset.userPos.z);
+  asset.label.position.set(asset.userPos.x, asset.userPos.y + 2.2, asset.userPos.z);
+}
+
+window.setAnim = function(animName) { const asset = state.selectedAsset; if (!asset) return; asset.anim = animName; document.querySelectorAll('.anim-btn').forEach(b => b.classList.remove('active')); document.getElementById('anim-' + animName).classList.add('active'); };
+window.removeAssetById = function(id) { const asset = state.assets.find(a => a.id === id); if (asset) removeAsset(asset); };
+
+// ========== JSON IMPORT/EXPORT ==========
+function buildJSON() { return { template: { version: "1.0", regions: ["base","trunk","arms","head","periphery","core"], visualRules: { lighting: "intensity_per_contributions", color: "category_mapping", glow: "documentation_threshold", inscriptions: "primary_source_text" } }, instance: { class: "B2", subject: "Μέγας Βασίλειος", year: 2026, createdAt: new Date().toISOString() }, regions: Object.fromEntries(Object.entries(regionsData).map(([key, data]) => [key, { name: data.name, contributions: data.contributions, docStrength: data.docStrength, category: data.category, label: data.label }])), contributions: state.contributions, assets: state.assets.map(a => ({ id: a.id, name: a.name, type: a.type, url: a.url, scale: a.userScale, position: a.userPos, rotation: a.userRot, animation: a.anim })) }; }
+window.toggleJsonPanel = function() { const panel = document.getElementById('json-panel'); const isVisible = panel.style.display === 'flex'; ['contrib-panel','asset-panel','json-panel','asset-edit-panel'].forEach(pid => { document.getElementById(pid).style.display = 'none'; }); if (!isVisible) { panel.style.display = 'flex'; document.getElementById('json-editor').value = JSON.stringify(buildJSON(), null, 2); } };
+window.exportJSON = function() { document.getElementById('json-editor').value = JSON.stringify(buildJSON(), null, 2); };
+window.importJSON = function() { try { const data = JSON.parse(document.getElementById('json-editor').value); if (data.contributions) state.contributions = data.contributions; if (data.regions) { Object.entries(data.regions).forEach(([key, rd]) => { if (regionsData[key]) { regionsData[key].contributions = rd.contributions || 0; regionsData[key].docStrength = rd.docStrength || 0; regionsData[key].category = rd.category || null; if (rd.contributions > 0) applyVisualUpdate(key); } }); } updateStats(); updateLegend(); alert('✅ JSON φορτώθηκε επιτυχώς!'); } catch (e) { alert('❌ Σφάλμα JSON: ' + e.message); } };
+window.downloadJSON = function() { const json = JSON.stringify(buildJSON(), null, 2); const blob = new Blob([json], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `ISP_${regionsData.head.name || 'Sculpture'}_${new Date().toISOString().slice(0,10)}.json`; a.click(); URL.revokeObjectURL(url); };
+
+// ========== VR ==========
+window.enterVR = async function() { try { const session = await navigator.xr.requestSession('immersive-vr', { requiredFeatures: ['local-floor'] }); renderer.xr.setSession(session); } catch (e) { alert('VR δεν είναι διαθέσιμο. Δοκίμασε Meta Quest Browser ή Chrome με VR headset.'); } };
+if ('xr' in navigator) { navigator.xr.isSessionSupported('immersive-vr').then(supported => { if (supported) document.getElementById('vr-btn').style.display = 'block'; }); }
+
+// ========== ANIMATION ==========
+const clock = new THREE.Clock();
+function animate() {
+  requestAnimationFrame(animate); const time = clock.getElapsedTime();
+  if (regionMeshes.periphery) { regionMeshes.periphery.rotation.y = time * 0.1; regionMeshes.periphery.children[1].rotation.z = time * 0.15; regionMeshes.periphery.children[2].rotation.x = time * 0.08; }
+  const pos = particles.geometry.attributes.position.array;
+  for (let i = 1; i < pos.length; i += 3) { pos[i] += Math.sin(time + pos[i - 1]) * 0.002; if (pos[i] > 10) pos[i] = -10; }
+  particles.geometry.attributes.position.needsUpdate = true;
+  halo.rotation.z = time * 0.2; halo.material.opacity = 0.15 + Math.sin(time * 2) * 0.08;
+  coreMesh.rotation.y = time * 0.3;
+
+  // Asset animations
+  state.assets.forEach((asset, i) => {
+    const t = time + i * 1.5;
+    if (asset.anim === 'idle') { asset.mesh.rotation.y = asset.userRot + t * 0.2; }
+    else if (asset.anim === 'float') { asset.mesh.position.y = asset.userPos.y + Math.sin(t * 1.5) * 0.15; asset.mesh.rotation.y = asset.userRot + t * 0.15; }
+    else if (asset.anim === 'spin') { asset.mesh.rotation.y = asset.userRot + t * 1.5; }
+    else if (asset.anim === 'breathe') { const scale = asset.baseScale * asset.userScale * (1 + Math.sin(t * 2) * 0.05); asset.mesh.scale.set(scale, scale, scale); asset.mesh.rotation.y = asset.userRot + t * 0.1; }
+    else if (asset.anim === 'none') { asset.mesh.rotation.y = asset.userRot; }
+    // Update outline to follow animated mesh
+    const s = asset.baseScale * asset.userScale;
+    if (asset.anim !== 'breathe') asset.mesh.scale.set(s, s, s);
+    asset.outline.position.copy(asset.mesh.position);
+    asset.outline.position.y += (asset.boxCenter.y * asset.mesh.scale.x);
+    asset.outline.rotation.y = asset.mesh.rotation.y;
+    asset.outline.scale.set(asset.mesh.scale.x, asset.mesh.scale.y, asset.mesh.scale.z);
+    asset.label.position.y = asset.mesh.position.y + 2.2;
+  });
+
+  controls.update(); renderer.render(scene, camera);
+}
+
+// ========== INIT ==========
+updateLegend(); updateStats(); animate();
+
+// Demo data
+setTimeout(() => {
+  state.contributions.push({ id: 1, region: 'head', text: 'Η Θεολογία ως επιστήμη', source: 'Μέγας Βασίλειος, Εις το Άγιον Βάπτισμα', category: 'theological', docScore: 8, timestamp: new Date().toISOString() });
+  regionsData.head.contributions = 1; regionsData.head.docStrength = 8; regionsData.head.category = 'theological'; applyVisualUpdate('head');
+  state.contributions.push({ id: 2, region: 'base', text: 'Η παιδεία ως θεμέλιο', source: 'Μέγας Βασίλειος, Πρός τούς Νέους', category: 'ethical', docScore: 7, timestamp: new Date().toISOString() });
+  regionsData.base.contributions = 1; regionsData.base.docStrength = 7; regionsData.base.category = 'ethical'; applyVisualUpdate('base');
+  updateStats(); updateLegend();
+}, 500);
+</script>
+</body>
+</html>
