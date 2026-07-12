@@ -356,6 +356,15 @@ controls.enableDamping = true; controls.dampingFactor = 0.05;
 controls.maxPolarAngle = Math.PI * 0.85; controls.minDistance = 2; controls.maxDistance = 20;
 controls.target.set(0, 2.5, 0);
 
+// ========== VR CAMERA RIG ==========
+// Στο desktop το rig μένει στο (0,0,0) — η κάμερα δουλεύει όπως πριν με OrbitControls.
+// Στο VR μηδενίζουμε την τοπική θέση της κάμερας και μετακινούμε το rig.
+const VR_SPAWN = { x: 0, y: 0, z: 10 };
+const cameraRig = new THREE.Group();
+cameraRig.name = 'cameraRig';
+scene.add(cameraRig);
+cameraRig.add(camera);
+
 // ========== LIGHTING ==========
 const ambientLight = new THREE.AmbientLight(0x1a1a2e, 0.4); scene.add(ambientLight);
 const mainLight = new THREE.DirectionalLight(0xaaddff, 1.5);
