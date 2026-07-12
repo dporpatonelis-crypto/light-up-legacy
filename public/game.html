@@ -136,6 +136,28 @@ body { overflow: hidden; background: #0a0a0f; font-family: 'Segoe UI', Tahoma, G
 .toggle-btn { background: rgba(10, 15, 30, 0.85); border: 1px solid rgba(100, 180, 255, 0.25); border-radius: 8px; color: #aaddff; padding: 8px 14px; font-size: 11px; cursor: pointer; letter-spacing: 1px; transition: all 0.2s; }
 .toggle-btn:hover { background: rgba(20, 40, 70, 0.9); border-color: rgba(100, 180, 255, 0.5); }
 .toggle-btn.active { background: linear-gradient(135deg, #1a3a5c, #2a5a8c); border-color: rgba(100, 180, 255, 0.6); }
+
+/* ===== QUEST UI ===== */
+#quest-hint {
+  position: absolute; top: 74px; left: 50%; transform: translateX(-50%);
+  padding: 10px 22px; text-align: center; max-width: 520px;
+}
+#quest-hint .q-title { color: #ffcc66; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 4px; }
+#quest-hint .q-text  { color: #cddaef; font-size: 12px; line-height: 1.5; }
+
+#quest-reveal {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: 460px; max-width: 92vw; padding: 22px; display: none;
+  border: 1px solid rgba(120, 255, 170, 0.45);
+  box-shadow: 0 0 40px rgba(80, 220, 130, 0.25);
+}
+#quest-reveal .q-headline { color: #aaffbb; font-size: 15px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 10px; text-align: center; }
+#quest-reveal .q-body { color: #dfeee5; font-size: 13px; line-height: 1.65; }
+#quest-reveal .q-quote { color: #ffcc99; font-style: italic; margin: 10px 0; text-align: center; }
+#quest-reveal .q-close {
+  display: block; margin: 16px auto 0; background: linear-gradient(135deg, #1a4a2c, #2c7a5c);
+  border: none; border-radius: 6px; color: #eaffef; padding: 9px 22px; font-size: 12px; cursor: pointer; letter-spacing: 1px;
+}
 </style>
 </head>
 <body>
