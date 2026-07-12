@@ -762,14 +762,145 @@ function animate() {
 // ========== INIT ==========
 updateLegend(); updateStats(); animate();
 
-// Demo data
-setTimeout(() => {
-  state.contributions.push({ id: 1, region: 'head', text: 'Η Θεολογία ως επιστήμη', source: 'Μέγας Βασίλειος, Εις το Άγιον Βάπτισμα', category: 'theological', docScore: 8, timestamp: new Date().toISOString() });
-  regionsData.head.contributions = 1; regionsData.head.docStrength = 8; regionsData.head.category = 'theological'; applyVisualUpdate('head');
-  state.contributions.push({ id: 2, region: 'base', text: 'Η παιδεία ως θεμέλιο', source: 'Μέγας Βασίλειος, Πρός τούς Νέους', category: 'ethical', docScore: 7, timestamp: new Date().toISOString() });
-  regionsData.base.contributions = 1; regionsData.base.docStrength = 7; regionsData.base.category = 'ethical'; applyVisualUpdate('base');
+// ========== QUEST: Phase 1 — the Darkness ==========
+// Force the "Arms" region to be fully dark (unlit) until the student
+// discovers the hidden inscription.
+function darkenArms() {
+  regionMeshes.arms.forEach(m => {
+    m.material = m.material.clone();
+    m.material.color.setHex(0x050505);
+    m.material.emissive.setHex(0x000000);
+    m.material.emissiveIntensity = 0;
+    m.material.roughness = 1.0;
+    m.material.metalness = 0.0;
+  });
+  if (regionLights.arms) regionLights.arms.intensity = 0;
+}
+darkenArms();
+
+// ========== QUEST: Phase 2 — the Hidden Inscription ==========
+// A softly glowing sprite floating behind the sculpture. Discoverable only
+// when the student rotates the view around.
+function makeQuestInscription(text, position) {
+  const c = document.createElement('canvas'); c.width = 1024; c.height = 128;
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, 1024, 128);
+  // subtle glow
+  ctx.shadowColor = 'rgba(255, 210, 130, 0.9)'; ctx.shadowBlur = 24;
+  ctx.font = 'italic bold 44px "Segoe UI", serif';
+  ctx.fillStyle = 'rgba(255, 235, 190, 0.95)';
+  ctx.textAlign = 'center';
+  ctx.fillText(text, 512, 78);
+  const texture = new THREE.CanvasTexture(c);
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false }));
+  sprite.position.copy(position);
+  sprite.scale.set(4.2, 0.55, 1);
+  sprite.userData = { isQuestInscription: true };
+  scene.add(sprite);
+  return sprite;
+}
+const questInscription = makeQuestInscription(
+  '“ Ζήτησε τη Βασιλειάδα ”',
+  new THREE.Vector3(0, 2.4, -4.2)   // behind the sculpture — must rotate to see
+);
+// gentle pulsing so it can be spotted once in view
+(function pulseQuest() {
+  const start = clock.getElapsedTime();
+  function tick() {
+    if (state.questRevealed) { questInscription.material.opacity = 0.15; return; }
+    const t = clock.getElapsedTime() - start;
+    questInscription.material.opacity = 0.55 + Math.sin(t * 1.8) * 0.35;
+    requestAnimationFrame(tick);
+  }
+  tick();
+})();
+
+// Include quest inscription in raycasting
+const _origGetClickable = getAllClickableMeshes;
+getAllClickableMeshes = function() {
+  const meshes = _origGetClickable();
+  meshes.push(questInscription);
+  return meshes;
+};
+
+// Intercept clicks on the quest inscription
+window.addEventListener('click', (e) => {
+  if (state.questRevealed) return;
+  const rect = canvas.getBoundingClientRect();
+  const nx = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+  const ny = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera({ x: nx, y: ny }, camera);
+  const hits = raycaster.intersectObject(questInscription, false);
+  if (hits.length > 0) revealQuest();
+}, true);
+
+// Also reveal automatically if the camera gets very close (VR "approach")
+setInterval(() => {
+  if (state.questRevealed) return;
+  if (camera.position.distanceTo(questInscription.position) < 3.2) revealQuest();
+}, 400);
+
+// ========== QUEST: Phase 3 — the Revelation ==========
+state.questRevealed = false;
+function revealQuest() {
+  if (state.questRevealed) return;
+  state.questRevealed = true;
+  document.getElementById('quest-reveal').style.display = 'block';
+  const hint = document.getElementById('quest-hint-text');
+  if (hint) hint.innerHTML = '✅ Η επιγραφή αποκαλύφθηκε. Τα «Χέρια» φωτίζονται με το πράσινο της <b>Ηθικής / Κοινωνικής προσφοράς</b>.';
+  // Light up the arms with the ethical-green category
+  regionsData.arms.category = 'ethical';
+  regionsData.arms.contributions = Math.max(regionsData.arms.contributions, 1);
+  regionsData.arms.docStrength = Math.max(regionsData.arms.docStrength, 10);
+  applyVisualUpdate('arms');
+  // A little celebratory core pulse
+  pulseCore();
   updateStats(); updateLegend();
-}, 500);
+}
+window.closeQuestReveal = function() { document.getElementById('quest-reveal').style.display = 'none'; };
+
+// ========== SHEET-PUSHED CONTRIBUTIONS (JSON library) ==========
+// The Google-Sheet → script → GitHub push writes into /contributions.json.
+// Every group that has contributed lights up its region; empty groups stay dark.
+async function loadPushedContributions() {
+  try {
+    const res = await fetch('/contributions.json?ts=' + Date.now(), { cache: 'no-store' });
+    if (!res.ok) return;
+    const data = await res.json();
+    const list = Array.isArray(data) ? data : (data.contributions || []);
+    list.forEach((c, i) => {
+      if (!c || !c.region || !regionsData[c.region]) return;
+      const docScore = c.docScore ?? (c.source && c.source.length > 5 ? Math.min(c.source.length / 10, 10) : 1);
+      state.contributions.push({
+        id: c.id || (Date.now() + i),
+        region: c.region,
+        text: c.text || '',
+        source: c.source || '(χωρίς πηγή)',
+        category: c.category || 'theological',
+        docScore,
+        timestamp: c.timestamp || new Date().toISOString()
+      });
+      const rd = regionsData[c.region];
+      rd.contributions++;
+      rd.docStrength += docScore;
+      rd.category = c.category || rd.category || 'theological';
+      // Arms stay dark until the student solves the quest
+      if (c.region === 'arms' && !state.questRevealed) return;
+      applyVisualUpdate(c.region);
+      if (c.source && c.text) {
+        const mesh = regionMeshes[c.region]; let pos;
+        if (Array.isArray(mesh)) pos = mesh[0].position.clone().add(new THREE.Vector3(0, 0.6, 0));
+        else if (mesh.isGroup) pos = new THREE.Vector3(0, 0.5, 2.5);
+        else pos = mesh.position.clone().add(new THREE.Vector3(0, 1.0, 0));
+        addInscription(`"${c.source.substring(0, 28)}${c.source.length > 28 ? '...' : ''}"`, pos, c.region);
+      }
+    });
+    updateStats(); updateLegend();
+  } catch (e) { console.warn('contributions.json not available yet:', e); }
+}
+loadPushedContributions();
+// Poll every 30s so newly pushed rows appear during the lesson
+setInterval(loadPushedContributions, 30000);
 </script>
 </body>
 </html>
