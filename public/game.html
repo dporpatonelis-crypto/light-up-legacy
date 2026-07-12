@@ -733,13 +733,74 @@ window.importJSON = function() { try { const data = JSON.parse(document.getEleme
 window.downloadJSON = function() { const json = JSON.stringify(buildJSON(), null, 2); const blob = new Blob([json], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `ISP_${regionsData.head.name || 'Sculpture'}_${new Date().toISOString().slice(0,10)}.json`; a.click(); URL.revokeObjectURL(url); };
 
 // ========== VR ==========
-window.enterVR = async function() { try { const session = await navigator.xr.requestSession('immersive-vr', { requiredFeatures: ['local-floor'] }); renderer.xr.setSession(session); } catch (e) { alert('VR δεν είναι διαθέσιμο. Δοκίμασε Meta Quest Browser ή Chrome με VR headset.'); } };
+window.enterVR = async function() {
+  try {
+    // Reset camera σε άνετη θέση πριν ξεκινήσει το session (αποφεύγει "παγωμένη" γωνία από OrbitControls).
+    camera.position.set(0, 1.6, 6);
+    controls.target.set(0, 1.6, 0);
+    controls.update();
+    const session = await navigator.xr.requestSession('immersive-vr', { requiredFeatures: ['local-floor'] });
+    renderer.xr.setSession(session);
+  } catch (e) {
+    alert('VR δεν είναι διαθέσιμο. Δοκίμασε Meta Quest Browser ή Chrome με VR headset.');
+  }
+};
 if ('xr' in navigator) { navigator.xr.isSessionSupported('immersive-vr').then(supported => { if (supported) document.getElementById('vr-btn').style.display = 'block'; }); }
+
+// ========== XR SESSION LIFECYCLE ==========
+renderer.xr.addEventListener('sessionstart', () => {
+  controls.enabled = false;
+  // Το headset παίρνει τον έλεγχο της τοπικής κάμερας — μηδενίζουμε ώστε το rig να καθορίζει τη θέση.
+  camera.position.set(0, 0, 0);
+  camera.rotation.set(0, 0, 0);
+  cameraRig.position.set(VR_SPAWN.x, VR_SPAWN.y, VR_SPAWN.z);
+  cameraRig.rotation.set(0, 0, 0);
+});
+renderer.xr.addEventListener('sessionend', () => {
+  cameraRig.position.set(0, 0, 0);
+  cameraRig.rotation.set(0, 0, 0);
+  camera.position.set(0, 3, 8);
+  controls.target.set(0, 2.5, 0);
+  controls.enabled = true;
+  controls.update();
+});
+
+// ========== XR CONTROLLERS (trigger = selectstart) ==========
+const xrRaycaster = new THREE.Raycaster();
+const _tmpMat = new THREE.Matrix4();
+function makeControllerRay() {
+  const geom = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,-5)]);
+  const mat = new THREE.LineBasicMaterial({ color: 0x66ccff, transparent: true, opacity: 0.85 });
+  return new THREE.Line(geom, mat);
+}
+function handleXRSelect(controller) {
+  _tmpMat.identity().extractRotation(controller.matrixWorld);
+  xrRaycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
+  xrRaycaster.ray.direction.set(0, 0, -1).applyMatrix4(_tmpMat);
+  const hits = xrRaycaster.intersectObjects(getAllClickableMeshes(), false);
+  if (!hits.length) return;
+  const obj = hits[0].object;
+  if (obj.userData.region && regionsData[obj.userData.region]) {
+    state.hoveredRegion = obj.userData.region; state.hoveredAsset = null;
+    state.selectedRegion = obj.userData.region;
+    try { openPanel('contrib-panel'); document.getElementById('contrib-region-name').textContent = regionsData[obj.userData.region].name; } catch(_) {}
+  } else if (obj.userData.assetId !== undefined) {
+    try { selectAsset(obj.userData.assetId); } catch(_) {}
+  } else if (obj === questInscription) {
+    try { revealQuest(); } catch(_) {}
+  }
+}
+for (let i = 0; i < 2; i++) {
+  const controller = renderer.xr.getController(i);
+  controller.add(makeControllerRay());
+  controller.addEventListener('selectstart', () => handleXRSelect(controller));
+  cameraRig.add(controller);
+}
 
 // ========== ANIMATION ==========
 const clock = new THREE.Clock();
 function animate() {
-  requestAnimationFrame(animate); const time = clock.getElapsedTime();
+  const time = clock.getElapsedTime();
   if (regionMeshes.periphery) { regionMeshes.periphery.rotation.y = time * 0.1; regionMeshes.periphery.children[1].rotation.z = time * 0.15; regionMeshes.periphery.children[2].rotation.x = time * 0.08; }
   const pos = particles.geometry.attributes.position.array;
   for (let i = 1; i < pos.length; i += 3) { pos[i] += Math.sin(time + pos[i - 1]) * 0.002; if (pos[i] > 10) pos[i] = -10; }
@@ -765,11 +826,12 @@ function animate() {
     asset.label.position.y = asset.mesh.position.y + 2.2;
   });
 
-  controls.update(); renderer.render(scene, camera);
+  if (controls.enabled) controls.update();
+  renderer.render(scene, camera);
 }
 
 // ========== INIT ==========
-updateLegend(); updateStats(); animate();
+updateLegend(); updateStats(); renderer.setAnimationLoop(animate);
 
 // ========== QUEST: Phase 1 — the Darkness ==========
 // Force the "Arms" region to be fully dark (unlit) until the student
