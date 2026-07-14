@@ -365,6 +365,75 @@ cameraRig.name = 'cameraRig';
 scene.add(cameraRig);
 cameraRig.add(camera);
 
+// ===== VR Locomotion (thumbstick movement / snap turn), analogous to mouse on web =====
+const VR_LOCOMOTION = {
+  moveSpeed: 2.2,        // m/s (left stick)
+  snapTurnDeg: 30,       // deg per snap (right stick horizontal)
+  smoothTurn: false,     // if true, right stick turns continuously
+  smoothTurnSpeed: 1.6,  // rad/s when smoothTurn = true
+  deadzone: 0.2,
+  flyVertical: false,    // if true, right stick vertical moves up/down
+};
+const _xrMove = { forward: new THREE.Vector3(), right: new THREE.Vector3(), tmp: new THREE.Vector3() };
+let _snapTurnLatch = 0; // -1,0,1 to prevent repeat until stick recenters
+
+function updateXRLocomotion(dt) {
+  if (!renderer.xr.isPresenting) return;
+  const session = renderer.xr.getSession();
+  if (!session) return;
+  const dz = VR_LOCOMOTION.deadzone;
+
+  // camera forward/right in world (Y-flat)
+  camera.getWorldDirection(_xrMove.forward);
+  _xrMove.forward.y = 0;
+  if (_xrMove.forward.lengthSq() < 1e-6) return;
+  _xrMove.forward.normalize();
+  _xrMove.right.set(_xrMove.forward.z, 0, -_xrMove.forward.x); // perpendicular on XZ
+
+  for (const src of session.inputSources) {
+    const gp = src.gamepad;
+    if (!gp || !gp.axes || gp.axes.length < 2) continue;
+    // WebXR standard: axes[2]/[3] are the thumbstick; fallback to [0]/[1]
+    const ax = gp.axes.length >= 4 ? gp.axes[2] : gp.axes[0];
+    const ay = gp.axes.length >= 4 ? gp.axes[3] : gp.axes[1];
+    const hand = src.handedness;
+
+    if (hand === 'left' || (hand !== 'right' && hand !== 'left')) {
+      // MOVE (left stick): ay forward/back, ax strafe
+      const mx = Math.abs(ax) > dz ? ax : 0;
+      const my = Math.abs(ay) > dz ? ay : 0;
+      if (mx || my) {
+        _xrMove.tmp.set(0, 0, 0)
+          .addScaledVector(_xrMove.forward, -my * VR_LOCOMOTION.moveSpeed * dt)
+          .addScaledVector(_xrMove.right, mx * VR_LOCOMOTION.moveSpeed * dt);
+        cameraRig.position.add(_xrMove.tmp);
+      }
+    }
+    if (hand === 'right') {
+      // TURN (right stick horizontal)
+      if (VR_LOCOMOTION.smoothTurn) {
+        const tx = Math.abs(ax) > dz ? ax : 0;
+        if (tx) cameraRig.rotation.y -= tx * VR_LOCOMOTION.smoothTurnSpeed * dt;
+      } else {
+        if (Math.abs(ax) > 0.7) {
+          const dir = ax > 0 ? 1 : -1;
+          if (_snapTurnLatch !== dir) {
+            cameraRig.rotation.y -= dir * (VR_LOCOMOTION.snapTurnDeg * Math.PI / 180);
+            _snapTurnLatch = dir;
+          }
+        } else if (Math.abs(ax) < 0.3) {
+          _snapTurnLatch = 0;
+        }
+      }
+      // Optional fly (right stick vertical)
+      if (VR_LOCOMOTION.flyVertical) {
+        const ty = Math.abs(ay) > dz ? ay : 0;
+        if (ty) cameraRig.position.y += -ty * VR_LOCOMOTION.moveSpeed * dt;
+      }
+    }
+  }
+}
+
 // ========== LIGHTING ==========
 const ambientLight = new THREE.AmbientLight(0x1a1a2e, 0.4); scene.add(ambientLight);
 const mainLight = new THREE.DirectionalLight(0xaaddff, 1.5);
