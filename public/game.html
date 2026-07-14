@@ -774,6 +774,11 @@ function makeControllerRay() {
   return new THREE.Line(geom, mat);
 }
 function handleXRSelect(controller) {
+  // First, test the wrist UI panel (if visible and this controller is the pointer)
+  if (wristUI && wristUI.visible && controller !== wristUI.hostController) {
+    const hit = wristUI.raycast(controller);
+    if (hit) { wristUI.handleClick(hit.u, hit.v); return; }
+  }
   _tmpMat.identity().extractRotation(controller.matrixWorld);
   xrRaycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
   xrRaycaster.ray.direction.set(0, 0, -1).applyMatrix4(_tmpMat);
@@ -784,17 +789,287 @@ function handleXRSelect(controller) {
     state.hoveredRegion = obj.userData.region; state.hoveredAsset = null;
     state.selectedRegion = obj.userData.region;
     try { openPanel('contrib-panel'); document.getElementById('contrib-region-name').textContent = regionsData[obj.userData.region].name; } catch(_) {}
+    if (wristUI) wristUI.redraw();
   } else if (obj.userData.assetId !== undefined) {
     try { selectAsset(obj.userData.assetId); } catch(_) {}
   } else if (obj === questInscription) {
     try { revealQuest(); } catch(_) {}
   }
 }
+const xrControllers = [];
 for (let i = 0; i < 2; i++) {
   const controller = renderer.xr.getController(i);
-  controller.add(makeControllerRay());
+  controller.userData.rayLine = makeControllerRay();
+  controller.add(controller.userData.rayLine);
   controller.addEventListener('selectstart', () => handleXRSelect(controller));
+  controller.addEventListener('connected', (e) => {
+    controller.userData.handedness = e.data && e.data.handedness ? e.data.handedness : null;
+    wristUI.attachIfReady();
+  });
+  controller.addEventListener('disconnected', () => {
+    controller.userData.handedness = null;
+  });
   cameraRig.add(controller);
+  xrControllers.push(controller);
+}
+
+// ========== WRIST UI (3D canvas panel on left controller) ==========
+const wristUI = (function() {
+  const W = 512, H = 680;
+  const canvas = document.createElement('canvas');
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.anisotropy = 4;
+  const geom = new THREE.PlaneGeometry(0.20, 0.265);
+  const mat = new THREE.MeshBasicMaterial({ map: texture, transparent: true, side: THREE.DoubleSide });
+  const mesh = new THREE.Mesh(geom, mat);
+  // Position the panel to sit above the wrist, tilted toward the user's face
+  mesh.position.set(0, 0.05, -0.10);
+  mesh.rotation.set(-Math.PI / 3, 0, 0);
+
+  const categories = [
+    { key: 'theological',  label: 'Θεολ.', color: '#8866ff' },
+    { key: 'ethical',      label: 'Ηθική', color: '#66ff88' },
+    { key: 'historical',   label: 'Ιστορ.', color: '#ffaa44' },
+    { key: 'philosophical',label: 'Φιλοσ.', color: '#44aaff' },
+  ];
+  const regionKeys = ['base','trunk','arms','head','periphery','core'];
+
+  // Layout rects (in canvas px) — used for both drawing and hit-testing
+  const hitAreas = [];
+  function rect(id, x, y, w, h, meta) { hitAreas.push({ id, x, y, w, h, meta }); return { x, y, w, h }; }
+
+  function computeLayout() {
+    hitAreas.length = 0;
+    // Category buttons row (y 80–150)
+    const catW = (W - 40 - 12*3) / 4; // 4 buttons, 12px gap
+    categories.forEach((c, i) => rect('cat:' + c.key, 20 + i*(catW+12), 80, catW, 70, c));
+    // Region rows (y 170–170+6*60)
+    regionKeys.forEach((k, i) => rect('reg:' + k, 20, 170 + i*58, W - 40, 50, k));
+    // Submit button
+    rect('submit', 20, 510, W - 40, 60, null);
+  }
+
+  function draw() {
+    computeLayout();
+    // Background
+    ctx.clearRect(0, 0, W, H);
+    const grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, 'rgba(10,15,30,0.96)');
+    grad.addColorStop(1, 'rgba(20,10,40,0.96)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = 'rgba(120,180,255,0.5)';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(2, 2, W-4, H-4);
+
+    // Title
+    ctx.fillStyle = '#eaf2ff';
+    ctx.font = 'bold 30px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Interpretive Sculpture', W/2, 44);
+    ctx.font = '18px sans-serif';
+    ctx.fillStyle = 'rgba(180,200,240,0.75)';
+    ctx.fillText('Wrist Panel · Μέγας Βασίλειος', W/2, 68);
+
+    // Category buttons
+    for (const a of hitAreas.filter(a => a.id.startsWith('cat:'))) {
+      const active = state.selectedCategory === a.meta.key;
+      ctx.fillStyle = active ? a.meta.color : 'rgba(255,255,255,0.06)';
+      roundRect(ctx, a.x, a.y, a.w, a.h, 12);
+      ctx.fill();
+      ctx.strokeStyle = a.meta.color;
+      ctx.lineWidth = active ? 3 : 2;
+      ctx.stroke();
+      ctx.fillStyle = active ? '#0a0a0f' : '#eaf2ff';
+      ctx.font = 'bold 20px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(a.meta.label, a.x + a.w/2, a.y + a.h/2);
+    }
+
+    // Region rows
+    ctx.textBaseline = 'middle';
+    for (const a of hitAreas.filter(a => a.id.startsWith('reg:'))) {
+      const key = a.meta;
+      const rd = regionsData[key];
+      const active = state.selectedRegion === key;
+      const catCol = rd.category ? '#' + categoryColors[rd.category].toString(16).padStart(6,'0')
+                                 : '#' + rd.color.toString(16).padStart(6,'0');
+      ctx.fillStyle = active ? 'rgba(102,204,255,0.20)' : 'rgba(255,255,255,0.04)';
+      roundRect(ctx, a.x, a.y, a.w, a.h, 10);
+      ctx.fill();
+      ctx.strokeStyle = active ? '#66ccff' : 'rgba(120,180,255,0.25)';
+      ctx.lineWidth = active ? 3 : 1.5;
+      ctx.stroke();
+      // Color dot
+      ctx.beginPath();
+      ctx.arc(a.x + 22, a.y + a.h/2, 12, 0, Math.PI*2);
+      ctx.fillStyle = catCol;
+      ctx.shadowColor = catCol; ctx.shadowBlur = 12;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      // Name
+      ctx.fillStyle = '#eaf2ff';
+      ctx.font = 'bold 20px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText(rd.name, a.x + 44, a.y + a.h/2);
+      // Count badge
+      ctx.font = 'bold 18px sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillStyle = rd.contributions > 0 ? '#ffde7a' : 'rgba(200,210,230,0.5)';
+      ctx.fillText(String(rd.contributions), a.x + a.w - 16, a.y + a.h/2);
+    }
+
+    // Submit button
+    const sub = hitAreas.find(a => a.id === 'submit');
+    const canSubmit = !!state.selectedRegion;
+    ctx.fillStyle = canSubmit ? 'rgba(102,255,170,0.85)' : 'rgba(80,80,90,0.4)';
+    roundRect(ctx, sub.x, sub.y, sub.w, sub.h, 14);
+    ctx.fill();
+    ctx.strokeStyle = canSubmit ? '#66ffaa' : 'rgba(150,150,160,0.5)';
+    ctx.lineWidth = 3; ctx.stroke();
+    ctx.fillStyle = canSubmit ? '#0a0a0f' : 'rgba(220,220,230,0.6)';
+    ctx.font = 'bold 24px sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(canSubmit ? '✨ ΥΠΟΒΟΛΗ (VR)' : 'Επίλεξε περιοχή', sub.x + sub.w/2, sub.y + sub.h/2);
+
+    // Stats bar
+    const total = state.contributions.length;
+    const strong = state.contributions.filter(c => c.docScore > 5).length;
+    const glow = Math.min(total * 8, 100);
+    ctx.fillStyle = 'rgba(255,255,255,0.06)';
+    roundRect(ctx, 20, 590, W - 40, 70, 12); ctx.fill();
+    ctx.fillStyle = '#eaf2ff';
+    ctx.font = 'bold 18px sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(`Σύνολο ${total}  ·  Τεκμηριωμένες ${strong}  ·  Λάμψη ${glow}%`, W/2, 625);
+
+    texture.needsUpdate = true;
+  }
+
+  function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  const localRay = new THREE.Ray();
+  const localOrigin = new THREE.Vector3();
+  const localDir = new THREE.Vector3();
+  const invMat = new THREE.Matrix4();
+  function raycast(controller) {
+    if (!mesh.parent) return null;
+    // Build controller ray in world space
+    _tmpMat.identity().extractRotation(controller.matrixWorld);
+    const worldOrigin = new THREE.Vector3().setFromMatrixPosition(controller.matrixWorld);
+    const worldDir = new THREE.Vector3(0, 0, -1).applyMatrix4(_tmpMat).normalize();
+    // Transform into panel local space
+    mesh.updateWorldMatrix(true, false);
+    invMat.copy(mesh.matrixWorld).invert();
+    localOrigin.copy(worldOrigin).applyMatrix4(invMat);
+    localDir.copy(worldDir).transformDirection(invMat);
+    if (Math.abs(localDir.z) < 1e-4) return null;
+    const t = -localOrigin.z / localDir.z;
+    if (t <= 0 || t > 20) return null;
+    const x = localOrigin.x + localDir.x * t;
+    const y = localOrigin.y + localDir.y * t;
+    const halfW = 0.20 / 2, halfH = 0.265 / 2;
+    if (x < -halfW || x > halfW || y < -halfH || y > halfH) return null;
+    // UV: (0,0) bottom-left
+    const u = (x + halfW) / (halfW * 2);
+    const v = 1 - (y + halfH) / (halfH * 2); // canvas y goes down
+    return { u, v, t };
+  }
+
+  function handleClick(u, v) {
+    const px = u * W, py = v * H;
+    for (const a of hitAreas) {
+      if (px >= a.x && px <= a.x + a.w && py >= a.y && py <= a.y + a.h) {
+        if (a.id.startsWith('cat:')) {
+          state.selectedCategory = a.meta.key;
+        } else if (a.id.startsWith('reg:')) {
+          state.selectedRegion = a.meta;
+          state.hoveredRegion = a.meta;
+        } else if (a.id === 'submit') {
+          quickSubmitVR();
+        }
+        draw();
+        return;
+      }
+    }
+  }
+
+  // Attach the panel to the "left" controller (fallback: controller 0 after 1.2s)
+  let attached = false;
+  let hostController = null;
+  function attachTo(controller) {
+    if (attached) return;
+    attached = true;
+    hostController = controller;
+    controller.add(mesh);
+    // Hide the ray on the host controller — it's the "wrist", not the pointer
+    if (controller.userData.rayLine) controller.userData.rayLine.visible = false;
+    draw();
+  }
+  function attachIfReady() {
+    if (attached) return;
+    const left = xrControllers.find(c => c.userData.handedness === 'left');
+    if (left) attachTo(left);
+  }
+  renderer.xr.addEventListener('sessionstart', () => {
+    setTimeout(() => { if (!attached && xrControllers[0]) attachTo(xrControllers[0]); }, 1200);
+  });
+  renderer.xr.addEventListener('sessionend', () => {
+    if (attached && hostController) {
+      hostController.remove(mesh);
+      if (hostController.userData.rayLine) hostController.userData.rayLine.visible = true;
+    }
+    attached = false; hostController = null;
+  });
+
+  function quickSubmitVR() {
+    const region = state.selectedRegion;
+    if (!region) return;
+    const contribution = {
+      id: Date.now(), region,
+      text: '🎯 Συνεισφορά από VR (' + regionsData[region].name + ')',
+      source: '(VR quick-offer)',
+      category: state.selectedCategory,
+      docScore: 2,
+      timestamp: new Date().toISOString(),
+    };
+    state.contributions.push(contribution);
+    const rd = regionsData[region];
+    rd.contributions++; rd.docStrength += contribution.docScore; rd.category = state.selectedCategory;
+    try { applyVisualUpdate(region); } catch(_) {}
+    try { updateStats(); updateLegend(); } catch(_) {}
+    draw();
+  }
+
+  return {
+    mesh,
+    get visible() { return attached; },
+    get hostController() { return hostController; },
+    attachIfReady, raycast, handleClick,
+    redraw: draw,
+  };
+})();
+
+// Hover-highlight the pointer ray when it hits the wrist panel
+function updateWristHover() {
+  if (!wristUI.visible) return;
+  for (const c of xrControllers) {
+    if (c === wristUI.hostController) continue;
+    const hit = wristUI.raycast(c);
+    const ray = c.userData.rayLine;
+    if (ray) ray.material.color.setHex(hit ? 0x66ffaa : 0x66ccff);
+  }
 }
 
 // ========== ANIMATION ==========
@@ -827,6 +1102,7 @@ function animate() {
   });
 
   if (controls.enabled) controls.update();
+  updateWristHover();
   renderer.render(scene, camera);
 }
 
