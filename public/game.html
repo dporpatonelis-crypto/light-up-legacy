@@ -388,7 +388,8 @@ function updateXRLocomotion(dt) {
   _xrMove.forward.y = 0;
   if (_xrMove.forward.lengthSq() < 1e-6) return;
   _xrMove.forward.normalize();
-  _xrMove.right.set(_xrMove.forward.z, 0, -_xrMove.forward.x); // perpendicular on XZ
+  // right = up × forward (so +ax on left stick strafes to the RIGHT)
+  _xrMove.right.set(-_xrMove.forward.z, 0, _xrMove.forward.x);
 
   for (const src of session.inputSources) {
     const gp = src.gamepad;
@@ -871,6 +872,8 @@ for (let i = 0; i < 2; i++) {
   controller.userData.rayLine = makeControllerRay();
   controller.add(controller.userData.rayLine);
   controller.addEventListener('selectstart', () => handleXRSelect(controller));
+  controller.addEventListener('squeezestart', () => teleport.begin(controller));
+  controller.addEventListener('squeezeend', () => teleport.commit(controller));
   controller.addEventListener('connected', (e) => {
     controller.userData.handedness = e.data && e.data.handedness ? e.data.handedness : null;
     wristUI.attachIfReady();
@@ -1141,6 +1144,133 @@ function updateWristHover() {
   }
 }
 
+// ========== TELEPORTATION (squeeze/grip on any controller) ==========
+// Παραβολική τροχιά από τον controller. Πίεσε το grip για στόχευση, άφησέ το για μεταφορά.
+const teleport = (function() {
+  const TP = {
+    gravity: 9.8,
+    initialSpeed: 8,     // m/s along controller forward
+    maxTime: 2.0,        // s of simulated flight
+    steps: 32,
+    groundY: 0,          // επίπεδο τηλεμεταφοράς
+  };
+  const arcGeom = new THREE.BufferGeometry();
+  arcGeom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(TP.steps * 3), 3));
+  arcGeom.setDrawRange(0, 0);
+  const arcMat = new THREE.LineBasicMaterial({ color: 0x66ffaa, transparent: true, opacity: 0.9 });
+  const arcLine = new THREE.Line(arcGeom, arcMat);
+  arcLine.frustumCulled = false;
+  arcLine.visible = false;
+  scene.add(arcLine);
+
+  const marker = new THREE.Mesh(
+    new THREE.RingGeometry(0.28, 0.42, 32),
+    new THREE.MeshBasicMaterial({ color: 0x66ffaa, transparent: true, opacity: 0.85, side: THREE.DoubleSide })
+  );
+  marker.rotation.x = -Math.PI / 2;
+  marker.visible = false;
+  scene.add(marker);
+
+  let activeController = null;
+  let lastHit = null; // THREE.Vector3 world
+
+  const _origin = new THREE.Vector3();
+  const _dir = new THREE.Vector3();
+  const _mat = new THREE.Matrix4();
+  const _p = new THREE.Vector3();
+
+  function begin(controller) {
+    // Μην ενεργοποιείς αν ο controller είναι ο host του wrist UI
+    if (wristUI && wristUI.hostController === controller) return;
+    activeController = controller;
+    arcLine.visible = true;
+    marker.visible = false;
+    // Κρύψε την ακτίνα του pointer όσο στοχεύεις
+    if (controller.userData.rayLine) controller.userData.rayLine.visible = false;
+  }
+
+  function commit(controller) {
+    if (activeController !== controller) return;
+    arcLine.visible = false;
+    marker.visible = false;
+    if (controller.userData.rayLine) controller.userData.rayLine.visible = true;
+    activeController = null;
+    if (!lastHit) return;
+    // Μετακίνησε το rig ώστε η κάμερα (headset) να βρεθεί πάνω από το lastHit.
+    // Η κάμερα έχει τοπικό offset μέσα στο rig (headset pose). Κράτα το y του rig ίδιο με το VR_SPAWN.y.
+    const camWorld = new THREE.Vector3();
+    camera.getWorldPosition(camWorld);
+    const dx = lastHit.x - camWorld.x;
+    const dz = lastHit.z - camWorld.z;
+    cameraRig.position.x += dx;
+    cameraRig.position.z += dz;
+    lastHit = null;
+  }
+
+  function update() {
+    if (!activeController) return;
+    const c = activeController;
+    _origin.setFromMatrixPosition(c.matrixWorld);
+    _mat.identity().extractRotation(c.matrixWorld);
+    _dir.set(0, 0, -1).applyMatrix4(_mat).normalize();
+
+    // Παραβολή: p(t) = origin + dir*v0*t - 0.5*g*t^2 * ŷ
+    const v0 = TP.initialSpeed;
+    const g = TP.gravity;
+    const dtStep = TP.maxTime / (TP.steps - 1);
+    const positions = arcGeom.attributes.position.array;
+    let count = 0;
+    let hit = null;
+    let prevY = _origin.y;
+    for (let i = 0; i < TP.steps; i++) {
+      const t = i * dtStep;
+      _p.set(
+        _origin.x + _dir.x * v0 * t,
+        _origin.y + _dir.y * v0 * t - 0.5 * g * t * t,
+        _origin.z + _dir.z * v0 * t
+      );
+      positions[count * 3 + 0] = _p.x;
+      positions[count * 3 + 1] = _p.y;
+      positions[count * 3 + 2] = _p.z;
+      count++;
+      if (i > 0 && prevY >= TP.groundY && _p.y <= TP.groundY) {
+        // γραμμική παρεμβολή στο έδαφος
+        const t0 = (i - 1) * dtStep;
+        const y0 = prevY;
+        const y1 = _p.y;
+        const alpha = (TP.groundY - y0) / (y1 - y0 || 1e-6);
+        const tHit = t0 + alpha * dtStep;
+        hit = new THREE.Vector3(
+          _origin.x + _dir.x * v0 * tHit,
+          TP.groundY,
+          _origin.z + _dir.z * v0 * tHit
+        );
+        positions[(count - 1) * 3 + 0] = hit.x;
+        positions[(count - 1) * 3 + 1] = hit.y;
+        positions[(count - 1) * 3 + 2] = hit.z;
+        break;
+      }
+      prevY = _p.y;
+    }
+    arcGeom.setDrawRange(0, count);
+    arcGeom.attributes.position.needsUpdate = true;
+
+    if (hit) {
+      lastHit = hit;
+      marker.position.set(hit.x, hit.y + 0.02, hit.z);
+      marker.visible = true;
+      arcMat.color.setHex(0x66ffaa);
+      marker.material.color.setHex(0x66ffaa);
+    } else {
+      lastHit = null;
+      marker.visible = false;
+      arcMat.color.setHex(0xff6666);
+    }
+  }
+
+  return { begin, commit, update };
+})();
+
 // ========== ANIMATION ==========
 const clock = new THREE.Clock();
 function animate() {
@@ -1173,6 +1303,7 @@ function animate() {
 
   if (controls.enabled) controls.update();
   updateXRLocomotion(dt);
+  teleport.update();
   updateWristHover();
   renderer.render(scene, camera);
 }
