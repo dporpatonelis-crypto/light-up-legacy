@@ -388,7 +388,8 @@ function updateXRLocomotion(dt) {
   _xrMove.forward.y = 0;
   if (_xrMove.forward.lengthSq() < 1e-6) return;
   _xrMove.forward.normalize();
-  _xrMove.right.set(_xrMove.forward.z, 0, -_xrMove.forward.x); // perpendicular on XZ
+  // right = up × forward (so +ax on left stick strafes to the RIGHT)
+  _xrMove.right.set(-_xrMove.forward.z, 0, _xrMove.forward.x);
 
   for (const src of session.inputSources) {
     const gp = src.gamepad;
