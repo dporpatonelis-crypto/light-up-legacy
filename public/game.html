@@ -872,6 +872,8 @@ for (let i = 0; i < 2; i++) {
   controller.userData.rayLine = makeControllerRay();
   controller.add(controller.userData.rayLine);
   controller.addEventListener('selectstart', () => handleXRSelect(controller));
+  controller.addEventListener('squeezestart', () => teleport.begin(controller));
+  controller.addEventListener('squeezeend', () => teleport.commit(controller));
   controller.addEventListener('connected', (e) => {
     controller.userData.handedness = e.data && e.data.handedness ? e.data.handedness : null;
     wristUI.attachIfReady();
