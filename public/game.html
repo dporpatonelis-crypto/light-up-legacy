@@ -1515,6 +1515,7 @@ window.closeQuestReveal = function() { document.getElementById('quest-reveal').s
 // ========== SHEET-PUSHED CONTRIBUTIONS (JSON library) ==========
 // The Google-Sheet → script → GitHub push writes into /contributions.json.
 // Every group that has contributed lights up its region; empty groups stay dark.
+const loadedContribIds = new Set();
 async function loadPushedContributions() {
   try {
     const res = await fetch('/contributions.json?ts=' + Date.now(), { cache: 'no-store' });
@@ -1523,9 +1524,12 @@ async function loadPushedContributions() {
     const list = Array.isArray(data) ? data : (data.contributions || []);
     list.forEach((c, i) => {
       if (!c || !c.region || !regionsData[c.region]) return;
+      const cid = String(c.id || (c.region + '|' + (c.text || '') + '|' + (c.source || '')));
+      if (loadedContribIds.has(cid)) return;
+      loadedContribIds.add(cid);
       const docScore = c.docScore ?? (c.source && c.source.length > 5 ? Math.min(c.source.length / 10, 10) : 1);
       state.contributions.push({
-        id: c.id || (Date.now() + i),
+        id: cid,
         region: c.region,
         text: c.text || '',
         source: c.source || '(χωρίς πηγή)',
