@@ -282,6 +282,7 @@ body { overflow: hidden; background: #0a0a0f; font-family: 'Segoe UI', Tahoma, G
 
   <div id="vr-btn-container">
     <button id="vr-btn" onclick="enterVR()">🥽 ΕΙΣΟΔΟΣ ΣΕ VR</button>
+    <button id="restore-btn" onclick="restoreDiscovery()" title="Επαναφορά στη συλλογική μνήμη (GitHub) + όσα προστέθηκαν ζωντανά" style="margin-top:8px;display:block;width:100%;padding:10px 14px;background:linear-gradient(135deg,#1a3a2e,#0e6b4a);color:#c8ffe4;border:1px solid #3ad39a;border-radius:8px;font-size:12px;letter-spacing:1.5px;cursor:pointer;">🔄 ΕΠΑΝΑΦΟΡΑ DISCOVERY</button>
   </div>
 
   <div id="quest-hint" class="hud-panel">
@@ -603,6 +604,7 @@ window.submitContribution = function() {
   const docScore = hasSource ? Math.min(source.length / 10, 10) : 1;
   const contribution = { id: Date.now(), region, text, source: source || '(χωρίς πηγή — αδύναμη τεκμηρίωση)', category: state.selectedCategory, docScore, timestamp: new Date().toISOString() };
   state.contributions.push(contribution);
+  liveContributions.push(contribution);
   const rd = regionsData[region]; rd.contributions++; rd.docStrength += docScore; rd.category = state.selectedCategory;
   applyVisualUpdate(region);
   if (hasSource) {
@@ -806,6 +808,10 @@ function buildJSON() { return { template: { version: "1.0", regions: ["base","tr
 window.toggleJsonPanel = function() { const panel = document.getElementById('json-panel'); const isVisible = panel.style.display === 'flex'; ['contrib-panel','asset-panel','json-panel','asset-edit-panel'].forEach(pid => { document.getElementById(pid).style.display = 'none'; }); if (!isVisible) { panel.style.display = 'flex'; document.getElementById('json-editor').value = JSON.stringify(buildJSON(), null, 2); } };
 window.exportJSON = function() { document.getElementById('json-editor').value = JSON.stringify(buildJSON(), null, 2); };
 
+// Live-only contributions (added inside this session via UI/VR). Kept
+// separate so a "restore discovery" can rebuild = GitHub JSON + live.
+const liveContributions = [];
+
 // Reset every region + wipe user-added inscriptions so an import can rebuild
 // the sculpture as a clean "collective memory" snapshot.
 function resetSculptureState() {
@@ -846,12 +852,13 @@ function replayContribution(c) {
   rd.docStrength += docScore;
   rd.category = entry.category;
   applyVisualUpdate(c.region);
-  if (entry.source && entry.text) {
+  if (entry.source || entry.text) {
     const mesh = regionMeshes[c.region]; let pos;
     if (Array.isArray(mesh)) pos = mesh[0].position.clone().add(new THREE.Vector3(0, 0.6, 0));
     else if (mesh.isGroup) pos = new THREE.Vector3(0, 0.5, 2.5);
     else pos = mesh.position.clone().add(new THREE.Vector3(0, 1.0, 0));
-    addInscription(`"${entry.source.substring(0, 28)}${entry.source.length > 28 ? '...' : ''}"`, pos, c.region);
+    const label = entry.source && entry.source.length > 3 ? entry.source : entry.text;
+    addInscription(`"${label.substring(0, 28)}${label.length > 28 ? '...' : ''}"`, pos, c.region);
   }
 }
 
@@ -1221,6 +1228,7 @@ const wristUI = (function() {
       timestamp: new Date().toISOString(),
     };
     state.contributions.push(contribution);
+    liveContributions.push(contribution);
     const rd = regionsData[region];
     rd.contributions++; rd.docStrength += contribution.docScore; rd.category = state.selectedCategory;
     try { applyVisualUpdate(region); } catch(_) {}
@@ -1558,6 +1566,28 @@ async function loadPushedContributions() {
 loadPushedContributions();
 // Poll every 30s so newly pushed rows appear during the lesson
 setInterval(loadPushedContributions, 30000);
+
+// ========== RESTORE POINT (Discovery Mode) ==========
+// Επαναφέρει το γλυπτό στη «συλλογική μνήμη» από το GitHub
+// (public/contributions.json) και ξαναπαίζει όσες συνεισφορές
+// προστέθηκαν ζωντανά σε αυτή τη συνεδρία (μέσω UI ή VR).
+window.restoreDiscovery = async function() {
+  try {
+    resetSculptureState();
+    // Re-fetch fresh copy from GitHub-pushed file
+    await loadPushedContributions();
+    // Replay in-session live additions on top of GitHub state
+    liveContributions.forEach(c => {
+      const cid = String(c.id);
+      if (loadedContribIds.has(cid)) return;
+      replayContribution(c);
+    });
+    updateStats(); updateLegend();
+    if (typeof wristUI !== 'undefined' && wristUI) { try { wristUI.redraw(); } catch(_) {} }
+  } catch (e) {
+    alert('❌ Αποτυχία επαναφοράς: ' + e.message);
+  }
+};
 </script>
 </body>
 </html>
