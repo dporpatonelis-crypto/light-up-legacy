@@ -604,6 +604,7 @@ window.submitContribution = function() {
   const docScore = hasSource ? Math.min(source.length / 10, 10) : 1;
   const contribution = { id: Date.now(), region, text, source: source || '(χωρίς πηγή — αδύναμη τεκμηρίωση)', category: state.selectedCategory, docScore, timestamp: new Date().toISOString() };
   state.contributions.push(contribution);
+  liveContributions.push(contribution);
   const rd = regionsData[region]; rd.contributions++; rd.docStrength += docScore; rd.category = state.selectedCategory;
   applyVisualUpdate(region);
   if (hasSource) {
