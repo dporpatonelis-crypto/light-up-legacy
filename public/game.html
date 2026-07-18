@@ -808,6 +808,10 @@ function buildJSON() { return { template: { version: "1.0", regions: ["base","tr
 window.toggleJsonPanel = function() { const panel = document.getElementById('json-panel'); const isVisible = panel.style.display === 'flex'; ['contrib-panel','asset-panel','json-panel','asset-edit-panel'].forEach(pid => { document.getElementById(pid).style.display = 'none'; }); if (!isVisible) { panel.style.display = 'flex'; document.getElementById('json-editor').value = JSON.stringify(buildJSON(), null, 2); } };
 window.exportJSON = function() { document.getElementById('json-editor').value = JSON.stringify(buildJSON(), null, 2); };
 
+// Live-only contributions (added inside this session via UI/VR). Kept
+// separate so a "restore discovery" can rebuild = GitHub JSON + live.
+const liveContributions = [];
+
 // Reset every region + wipe user-added inscriptions so an import can rebuild
 // the sculpture as a clean "collective memory" snapshot.
 function resetSculptureState() {
@@ -848,12 +852,13 @@ function replayContribution(c) {
   rd.docStrength += docScore;
   rd.category = entry.category;
   applyVisualUpdate(c.region);
-  if (entry.source && entry.text) {
+  if (entry.source || entry.text) {
     const mesh = regionMeshes[c.region]; let pos;
     if (Array.isArray(mesh)) pos = mesh[0].position.clone().add(new THREE.Vector3(0, 0.6, 0));
     else if (mesh.isGroup) pos = new THREE.Vector3(0, 0.5, 2.5);
     else pos = mesh.position.clone().add(new THREE.Vector3(0, 1.0, 0));
-    addInscription(`"${entry.source.substring(0, 28)}${entry.source.length > 28 ? '...' : ''}"`, pos, c.region);
+    const label = entry.source && entry.source.length > 3 ? entry.source : entry.text;
+    addInscription(`"${label.substring(0, 28)}${label.length > 28 ? '...' : ''}"`, pos, c.region);
   }
 }
 
