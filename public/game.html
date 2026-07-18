@@ -1223,6 +1223,7 @@ const wristUI = (function() {
       timestamp: new Date().toISOString(),
     };
     state.contributions.push(contribution);
+    liveContributions.push(contribution);
     const rd = regionsData[region];
     rd.contributions++; rd.docStrength += contribution.docScore; rd.category = state.selectedCategory;
     try { applyVisualUpdate(region); } catch(_) {}
