@@ -1566,6 +1566,28 @@ async function loadPushedContributions() {
 loadPushedContributions();
 // Poll every 30s so newly pushed rows appear during the lesson
 setInterval(loadPushedContributions, 30000);
+
+// ========== RESTORE POINT (Discovery Mode) ==========
+// Επαναφέρει το γλυπτό στη «συλλογική μνήμη» από το GitHub
+// (public/contributions.json) και ξαναπαίζει όσες συνεισφορές
+// προστέθηκαν ζωντανά σε αυτή τη συνεδρία (μέσω UI ή VR).
+window.restoreDiscovery = async function() {
+  try {
+    resetSculptureState();
+    // Re-fetch fresh copy from GitHub-pushed file
+    await loadPushedContributions();
+    // Replay in-session live additions on top of GitHub state
+    liveContributions.forEach(c => {
+      const cid = String(c.id);
+      if (loadedContribIds.has(cid)) return;
+      replayContribution(c);
+    });
+    updateStats(); updateLegend();
+    if (typeof wristUI !== 'undefined' && wristUI) { try { wristUI.redraw(); } catch(_) {} }
+  } catch (e) {
+    alert('❌ Αποτυχία επαναφοράς: ' + e.message);
+  }
+};
 </script>
 </body>
 </html>
