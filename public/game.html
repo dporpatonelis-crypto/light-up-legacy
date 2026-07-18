@@ -805,7 +805,105 @@ window.removeAssetById = function(id) { const asset = state.assets.find(a => a.i
 function buildJSON() { return { template: { version: "1.0", regions: ["base","trunk","arms","head","periphery","core"], visualRules: { lighting: "intensity_per_contributions", color: "category_mapping", glow: "documentation_threshold", inscriptions: "primary_source_text" } }, instance: { class: "B2", subject: "Μέγας Βασίλειος", year: 2026, createdAt: new Date().toISOString() }, regions: Object.fromEntries(Object.entries(regionsData).map(([key, data]) => [key, { name: data.name, contributions: data.contributions, docStrength: data.docStrength, category: data.category, label: data.label }])), contributions: state.contributions, assets: state.assets.map(a => ({ id: a.id, name: a.name, type: a.type, url: a.url, scale: a.userScale, position: a.userPos, rotation: a.userRot, animation: a.anim })) }; }
 window.toggleJsonPanel = function() { const panel = document.getElementById('json-panel'); const isVisible = panel.style.display === 'flex'; ['contrib-panel','asset-panel','json-panel','asset-edit-panel'].forEach(pid => { document.getElementById(pid).style.display = 'none'; }); if (!isVisible) { panel.style.display = 'flex'; document.getElementById('json-editor').value = JSON.stringify(buildJSON(), null, 2); } };
 window.exportJSON = function() { document.getElementById('json-editor').value = JSON.stringify(buildJSON(), null, 2); };
-window.importJSON = function() { try { const data = JSON.parse(document.getElementById('json-editor').value); if (data.contributions) state.contributions = data.contributions; if (data.regions) { Object.entries(data.regions).forEach(([key, rd]) => { if (regionsData[key]) { regionsData[key].contributions = rd.contributions || 0; regionsData[key].docStrength = rd.docStrength || 0; regionsData[key].category = rd.category || null; if (rd.contributions > 0) applyVisualUpdate(key); } }); } updateStats(); updateLegend(); alert('✅ JSON φορτώθηκε επιτυχώς!'); } catch (e) { alert('❌ Σφάλμα JSON: ' + e.message); } };
+
+// Reset every region + wipe user-added inscriptions so an import can rebuild
+// the sculpture as a clean "collective memory" snapshot.
+function resetSculptureState() {
+  state.contributions = [];
+  if (typeof loadedContribIds !== 'undefined') loadedContribIds.clear();
+  Object.keys(regionsData).forEach(key => {
+    const rd = regionsData[key];
+    rd.contributions = 0; rd.docStrength = 0; rd.category = null;
+    applyVisualUpdate(key);
+  });
+  // Remove dynamically added inscriptions (keep the 2 seeded ones)
+  for (let i = inscriptions.length - 1; i >= 2; i--) {
+    const s = inscriptions[i];
+    sculptureGroup.remove(s);
+    if (s.material && s.material.map) s.material.map.dispose();
+    if (s.material) s.material.dispose();
+    inscriptions.splice(i, 1);
+  }
+}
+
+// Replay one contribution into the live sculpture (lighting + inscription).
+function replayContribution(c) {
+  if (!c || !c.region || !regionsData[c.region]) return;
+  const docScore = c.docScore ?? (c.source && c.source.length > 5 ? Math.min(c.source.length / 10, 10) : 1);
+  const entry = {
+    id: c.id || (Date.now() + Math.random()),
+    region: c.region,
+    text: c.text || '',
+    source: c.source || '(χωρίς πηγή)',
+    category: c.category || 'theological',
+    docScore,
+    timestamp: c.timestamp || new Date().toISOString()
+  };
+  state.contributions.push(entry);
+  if (typeof loadedContribIds !== 'undefined') loadedContribIds.add(String(entry.id));
+  const rd = regionsData[c.region];
+  rd.contributions++;
+  rd.docStrength += docScore;
+  rd.category = entry.category;
+  applyVisualUpdate(c.region);
+  if (entry.source && entry.text) {
+    const mesh = regionMeshes[c.region]; let pos;
+    if (Array.isArray(mesh)) pos = mesh[0].position.clone().add(new THREE.Vector3(0, 0.6, 0));
+    else if (mesh.isGroup) pos = new THREE.Vector3(0, 0.5, 2.5);
+    else pos = mesh.position.clone().add(new THREE.Vector3(0, 1.0, 0));
+    addInscription(`"${entry.source.substring(0, 28)}${entry.source.length > 28 ? '...' : ''}"`, pos, c.region);
+  }
+}
+
+function applyImportedData(data) {
+  const contribs = Array.isArray(data) ? data
+    : (data.contributions || (data.regions && Object.values(data.regions).flatMap(r => r.contributions || [])) || []);
+  resetSculptureState();
+  // Collective memory unlocks the arms even without solving the quest again
+  state.questRevealed = true;
+  if (typeof questInscription !== 'undefined' && questInscription) {
+    questInscription.material.opacity = 0.15;
+  }
+  contribs.forEach(replayContribution);
+  // If the export also carried aggregated region stats but no per-item
+  // contributions, fall back to those so lighting still restores.
+  if (contribs.length === 0 && data.regions) {
+    Object.entries(data.regions).forEach(([key, rd]) => {
+      if (!regionsData[key]) return;
+      regionsData[key].contributions = rd.contributions || 0;
+      regionsData[key].docStrength = rd.docStrength || 0;
+      regionsData[key].category = rd.category || 'theological';
+      applyVisualUpdate(key);
+    });
+  }
+  updateStats(); updateLegend();
+  return contribs.length;
+}
+
+window.importJSON = function() {
+  try {
+    const raw = document.getElementById('json-editor').value.trim();
+    if (!raw) { alert('⚠️ Το πεδίο JSON είναι κενό.'); return; }
+    const data = JSON.parse(raw);
+    const n = applyImportedData(data);
+    alert('✅ Συλλογική μνήμη επαναφέρθηκε (' + n + ' συνεισφορές).');
+  } catch (e) { alert('❌ Σφάλμα JSON: ' + e.message); }
+};
+
+window.loadJsonFile = function(ev) {
+  const file = ev.target.files && ev.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      document.getElementById('json-editor').value = reader.result;
+      const data = JSON.parse(reader.result);
+      const n = applyImportedData(data);
+      alert('✅ Φορτώθηκε "' + file.name + '" — ' + n + ' συνεισφορές.');
+    } catch (e) { alert('❌ Σφάλμα ανάγνωσης αρχείου: ' + e.message); }
+  };
+  reader.readAsText(file);
+  ev.target.value = '';
+};
 window.downloadJSON = function() { const json = JSON.stringify(buildJSON(), null, 2); const blob = new Blob([json], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `ISP_${regionsData.head.name || 'Sculpture'}_${new Date().toISOString().slice(0,10)}.json`; a.click(); URL.revokeObjectURL(url); };
 
 // ========== VR ==========
