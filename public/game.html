@@ -1526,7 +1526,7 @@ window.closeQuestReveal = function() { document.getElementById('quest-reveal').s
 const loadedContribIds = new Set();
 async function loadPushedContributions() {
   try {
-    const res = await fetch('/contributions.json?ts=' + Date.now(), { cache: 'no-store' });
+    const res = await fetch('contributions.json?ts=' + Date.now(), { cache: 'no-store' });
     if (!res.ok) return;
     const data = await res.json();
     const list = Array.isArray(data) ? data : (data.contributions || []);
