@@ -147,8 +147,22 @@ body { overflow: hidden; background: #0a0a0f; font-family: 'Segoe UI', Tahoma, G
 .anim-btn:hover, .anim-btn.active { background: rgba(60, 140, 200, 0.4); border-color: rgba(60, 140, 200, 0.7); }
 
 /* ===== JSON PANEL ===== */
-#json-panel { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 500px; max-height: 70vh; display: none; flex-direction: column; }
-#json-panel textarea { width: 100%; height: 300px; background: rgba(0, 0, 0, 0.6); border: 1px solid rgba(100, 180, 255, 0.2); border-radius: 6px; color: #aaddff; padding: 10px; font-size: 11px; font-family: 'Consolas', 'Monaco', monospace; resize: none; margin: 8px 0; }
+#json-panel { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 500px; max-width: calc(100vw - 24px); max-height: 70vh; overflow-y: auto; display: none; flex-direction: column; }
+#json-panel textarea { width: 100%; height: 220px; background: rgba(0, 0, 0, 0.6); border: 1px solid rgba(100, 180, 255, 0.2); border-radius: 6px; color: #aaddff; padding: 10px; font-size: 11px; font-family: 'Consolas', 'Monaco', monospace; resize: vertical; margin: 8px 0; }
+#scenario-library { border: 1px solid rgba(100, 180, 255, 0.18); border-radius: 7px; padding: 8px; margin: 8px 0 10px; background: rgba(0, 0, 0, 0.2); }
+#scenario-library-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: #aaccff; font-size: 11px; letter-spacing: 1px; }
+#scenario-library-source { color: #667788; font-size: 9px; line-height: 1.35; margin: 4px 0 6px; }
+#scenario-library-status { color: #8899aa; font-size: 10px; min-height: 14px; margin-bottom: 5px; }
+#scenario-library-list { display: flex; flex-direction: column; gap: 5px; max-height: 150px; overflow-y: auto; }
+.scenario-refresh-btn { background: rgba(60, 140, 200, 0.22); border: 1px solid rgba(100, 180, 255, 0.35); border-radius: 4px; color: #aaddff; padding: 3px 7px; cursor: pointer; font-size: 13px; line-height: 1; }
+.scenario-refresh-btn:hover { background: rgba(60, 140, 200, 0.42); }
+.scenario-card { display: block; width: 100%; text-align: left; background: rgba(20, 35, 60, 0.55); border: 1px solid rgba(100, 180, 255, 0.18); border-radius: 5px; color: #ddeeff; padding: 7px 8px; cursor: pointer; }
+.scenario-card:hover, .scenario-card.active { background: rgba(40, 80, 120, 0.65); border-color: rgba(100, 180, 255, 0.58); }
+.scenario-card:disabled { cursor: not-allowed; opacity: 0.48; }
+.scenario-card-title { font-size: 11px; font-weight: 600; color: #cce6ff; }
+.scenario-card-meta { color: #99bbcc; font-size: 9px; margin-top: 2px; }
+.scenario-card-path { color: #667788; font-size: 8px; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scenario-storage-note { color: #778899; font-size: 9px; line-height: 1.4; margin: 8px 0; }
 .json-btn-row { display: flex; gap: 8px; }
 .json-btn { flex: 1; background: linear-gradient(135deg, #1a3a5c, #2a5a8c); border: none; border-radius: 6px; color: #fff; padding: 8px; font-size: 11px; cursor: pointer; letter-spacing: 1px; }
 .json-btn.secondary { background: linear-gradient(135deg, #3a2a2a, #5a3a3a); }
@@ -266,6 +280,15 @@ body { overflow: hidden; background: #0a0a0f; font-family: 'Segoe UI', Tahoma, G
       <span class="region-name">📋 Import / Export JSON</span>
       <button class="close-btn" onclick="closePanel('json-panel')">×</button>
     </div>
+    <div id="scenario-library">
+      <div id="scenario-library-header">
+        <span>📚 ΒΙΒΛΙΟΘΗΚΗ ΣΕΝΑΡΙΩΝ</span>
+        <button class="scenario-refresh-btn" onclick="window.loadScenarioLibrary(true)" title="Ανανέωση από GitHub">↻</button>
+      </div>
+      <div id="scenario-library-source">GitHub · sacred-blueprint / lessons / */ sculpture_output.json</div>
+      <div id="scenario-library-status">Άνοιξε το JSON panel για φόρτωση από GitHub.</div>
+      <div id="scenario-library-list"></div>
+    </div>
     <div class="section-label">Template JSON (επεξεργάσιμο):</div>
     <textarea id="json-editor" spellcheck="false"></textarea>
     <div class="json-btn-row">
@@ -279,6 +302,7 @@ body { overflow: hidden; background: #0a0a0f; font-family: 'Segoe UI', Tahoma, G
         <input type="file" accept="application/json,.json" style="display:none;" onchange="loadJsonFile(event)" />
       </label>
     </div>
+    <div class="scenario-storage-note">📌 Οι Contributions από το UI/VR μένουν στη μνήμη της τρέχουσας συνεδρίας. Το «ΑΠΟΘΗΚΕΥΣΗ» κατεβάζει το JSON στον υπολογιστή· το GitHub contributions.json ενημερώνεται εξωτερικά.</div>
   </div>
 
   <div id="stats" class="hud-panel">
@@ -934,7 +958,7 @@ window.removeAssetById = function(id) { const asset = state.assets.find(a => a.i
 
 // ========== JSON IMPORT/EXPORT ==========
 function buildJSON() { return { template: { version: "1.0", regions: ["base","trunk","arms","head","periphery","core"], visualRules: { lighting: "intensity_per_contributions", color: "category_mapping", glow: "documentation_threshold", inscriptions: "primary_source_text" } }, instance: { class: "B2", subject: "Μέγας Βασίλειος", year: 2026, createdAt: new Date().toISOString() }, regions: Object.fromEntries(Object.entries(regionsData).map(([key, data]) => [key, { name: data.name, contributions: data.contributions, docStrength: data.docStrength, category: data.category, label: data.label }])), contributions: state.contributions, assets: state.assets.map(a => ({ id: a.id, name: a.name, type: a.type, url: a.url, scale: a.userScale, position: a.userPos, rotation: a.userRot, animation: a.anim })) }; }
-window.toggleJsonPanel = function() { const panel = document.getElementById('json-panel'); const isVisible = panel.style.display === 'flex'; ['contrib-panel','asset-panel','json-panel','asset-edit-panel'].forEach(pid => { document.getElementById(pid).style.display = 'none'; }); if (!isVisible) { panel.style.display = 'flex'; document.getElementById('json-editor').value = JSON.stringify(buildJSON(), null, 2); } };
+window.toggleJsonPanel = function() { const panel = document.getElementById('json-panel'); const isVisible = panel.style.display === 'flex'; ['contrib-panel','asset-panel','json-panel','asset-edit-panel'].forEach(pid => { document.getElementById(pid).style.display = 'none'; }); if (!isVisible) { panel.style.display = 'flex'; document.getElementById('json-editor').value = JSON.stringify(buildJSON(), null, 2); loadScenarioLibrary(); } };
 window.exportJSON = function() { document.getElementById('json-editor').value = JSON.stringify(buildJSON(), null, 2); };
 
 // Live-only contributions (added inside this session via UI/VR). Kept
@@ -968,8 +992,8 @@ function replayContribution(c) {
   const entry = {
     id: c.id || (Date.now() + Math.random()),
     region: c.region,
-    text: c.text || '',
-    source: c.source || '(χωρίς πηγή)',
+    text: c.text || c.prompt || c.label || '',
+    source: c.source || c.label || '(χωρίς πηγή)',
     category: c.category || 'theological',
     docScore,
     timestamp: c.timestamp || new Date().toISOString()
@@ -1041,6 +1065,134 @@ window.loadJsonFile = function(ev) {
   ev.target.value = '';
 };
 window.downloadJSON = function() { const json = JSON.stringify(buildJSON(), null, 2); const blob = new Blob([json], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `ISP_${regionsData.head.name || 'Sculpture'}_${new Date().toISOString().slice(0,10)}.json`; a.click(); URL.revokeObjectURL(url); };
+const SCENARIO_LIBRARY_API = 'https://api.github.com/repos/dporpatonelis-crypto/sacred-blueprint/contents/lessons?ref=main';
+const SCENARIO_RAW_BASE = 'https://raw.githubusercontent.com/dporpatonelis-crypto/sacred-blueprint/main/lessons/';
+let scenarioLibrary = [];
+let scenarioLibraryLoading = false;
+let activeScenarioId = 'legacy-contributions';
+
+function setScenarioLibraryStatus(message) {
+  const status = document.getElementById('scenario-library-status');
+  if (status) status.textContent = message;
+}
+
+function scenarioDisplayName(data, folderName) {
+  return data?.instance?.title || data?.template?.title || data?.instance?.lesson_id || folderName;
+}
+
+function renderScenarioLibrary() {
+  const list = document.getElementById('scenario-library-list');
+  if (!list) return;
+  list.textContent = '';
+
+  if (!scenarioLibrary.length) {
+    const empty = document.createElement('div');
+    empty.className = 'scenario-card-meta';
+    empty.textContent = 'Δεν βρέθηκαν sculpture_output.json στο GitHub.';
+    list.appendChild(empty);
+    return;
+  }
+
+  scenarioLibrary.forEach(entry => {
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'scenario-card' + (entry.id === activeScenarioId ? ' active' : '');
+    card.disabled = !entry.compatible;
+    card.title = entry.compatible ? 'Φόρτωση σεναρίου' : 'Το template δεν χρησιμοποιεί τις περιοχές του Light Up Legacy';
+
+    const title = document.createElement('div');
+    title.className = 'scenario-card-title';
+    title.textContent = entry.name;
+
+    const meta = document.createElement('div');
+    meta.className = 'scenario-card-meta';
+    meta.textContent = entry.compatible
+      ? entry.contributionCount + ' contributions · περιοχές: ' + entry.supportedRegionNames.join(', ')
+      : '⚠️ Μη συμβατό template για αυτό το γλυπτό';
+
+    const file = document.createElement('div');
+    file.className = 'scenario-card-path';
+    file.textContent = entry.file;
+
+    card.appendChild(title);
+    card.appendChild(meta);
+    card.appendChild(file);
+    if (entry.compatible) card.onclick = () => selectScenario(entry);
+    list.appendChild(card);
+  });
+}
+
+async function fetchScenarioJson(url, options) {
+  const res = await fetch(url, Object.assign({ cache: 'no-store' }, options || {}));
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return res.json();
+}
+
+async function loadScenarioLibrary(force) {
+  if (scenarioLibraryLoading) return;
+  if (!force && scenarioLibrary.length) {
+    renderScenarioLibrary();
+    return;
+  }
+
+  scenarioLibraryLoading = true;
+  setScenarioLibraryStatus('⏳ Φόρτωση σεναρίων από GitHub…');
+  try {
+    const folders = await fetchScenarioJson(SCENARIO_LIBRARY_API, {
+      headers: { Accept: 'application/vnd.github+json' }
+    });
+    const candidates = Array.isArray(folders) ? folders.filter(item => item && item.type === 'dir') : [];
+    const entries = await Promise.all(candidates.map(async folder => {
+      const url = SCENARIO_RAW_BASE + encodeURIComponent(folder.name) + '/sculpture_output.json';
+      try {
+        const data = await fetchScenarioJson(url);
+        const regionKeys = Object.keys(data?.regions || {});
+        const supportedRegions = regionKeys.filter(key => regionsData[key]);
+        const contributionCount = Array.isArray(data?.contributions) ? data.contributions.length : 0;
+        return {
+          id: 'github:' + folder.name,
+          name: scenarioDisplayName(data, folder.name),
+          file: 'lessons/' + folder.name + '/sculpture_output.json',
+          url,
+          data,
+          contributionCount,
+          supportedRegionNames: supportedRegions.map(key => regionsData[key].name),
+          compatible: supportedRegions.length > 0
+        };
+      } catch (_) {
+        return null;
+      }
+    }));
+
+    scenarioLibrary = entries.filter(Boolean).sort((a, b) => a.name.localeCompare(b.name, 'el'));
+    renderScenarioLibrary();
+    setScenarioLibraryStatus(scenarioLibrary.length
+      ? scenarioLibrary.length + ' διαθέσιμα σενάρια · επίλεξε ένα για φόρτωση.'
+      : 'Δεν βρέθηκε συμβατό scenario JSON στο GitHub.');
+  } catch (error) {
+    scenarioLibrary = [];
+    renderScenarioLibrary();
+    setScenarioLibraryStatus('❌ Αποτυχία φόρτωσης GitHub: ' + error.message);
+  } finally {
+    scenarioLibraryLoading = false;
+  }
+}
+
+function selectScenario(entry) {
+  if (!entry || !entry.compatible) return;
+  try {
+    const count = applyImportedData(entry.data);
+    activeScenarioId = entry.id;
+    document.getElementById('json-editor').value = JSON.stringify(entry.data, null, 2);
+    renderScenarioLibrary();
+    setScenarioLibraryStatus('✅ Επιλέχθηκε «' + entry.name + '» · φορτώθηκαν ' + count + ' contributions.');
+  } catch (error) {
+    setScenarioLibraryStatus('❌ Αποτυχία φόρτωσης σεναρίου: ' + error.message);
+  }
+}
+
+window.loadScenarioLibrary = loadScenarioLibrary;
+
 
 // ========== VR ==========
 window.enterVR = async function() {
@@ -1668,8 +1820,8 @@ async function loadPushedContributions() {
       state.contributions.push({
         id: cid,
         region: c.region,
-        text: c.text || '',
-        source: c.source || '(χωρίς πηγή)',
+        text: c.text || c.prompt || c.label || '',
+        source: c.source || c.label || '(χωρίς πηγή)',
         category: c.category || 'theological',
         docScore,
         timestamp: c.timestamp || new Date().toISOString()
