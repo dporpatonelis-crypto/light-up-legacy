@@ -44,7 +44,7 @@ body { overflow: hidden; background: #0a0a0f; font-family: 'Segoe UI', Tahoma, G
 .legend-dot { width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 6px currentColor; flex-shrink: 0; }
 .legend-label { color: #aabbcc; font-size: 11px; }
 
-#contrib-panel { position: absolute; top: 80px; right: 16px; width: 300px; display: none; }
+#contrib-panel { position: absolute; top: 80px; right: 16px; width: 360px; max-height: calc(100vh - 110px); overflow-y: auto; display: none; }
 #contrib-panel .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
 #contrib-panel .region-name { color: #ffcc66; font-size: 14px; font-weight: 600; }
 #contrib-panel .close-btn { background: none; border: none; color: #8899aa; cursor: pointer; font-size: 18px; line-height: 1; }
@@ -55,6 +55,28 @@ body { overflow: hidden; background: #0a0a0f; font-family: 'Segoe UI', Tahoma, G
 }
 #contrib-panel textarea { height: 70px; resize: none; }
 #contrib-panel input[type="text"] { margin-bottom: 8px; }
+
+#contrib-panel .existing-heading { margin-top: 0; }
+#contrib-panel .existing-contribs { max-height: 260px; overflow-y: auto; margin: 6px 0 12px; }
+#contrib-panel .existing-contrib {
+  background: rgba(0, 0, 0, 0.28); border: 1px solid rgba(255, 204, 102, 0.18);
+  border-radius: 7px; padding: 8px; margin-bottom: 7px;
+}
+#contrib-panel .existing-contrib-meta { color: #ffcc66; font-size: 10px; margin-bottom: 6px; }
+#contrib-panel .existing-contrib-field-label { color: #8899aa; font-size: 10px; margin: 4px 0 3px; }
+#contrib-panel .existing-contrib textarea { height: 54px; resize: vertical; margin-bottom: 5px; }
+#contrib-panel .existing-contrib input[type="text"] { margin-bottom: 5px; }
+#contrib-panel .existing-contrib select {
+  width: 100%; background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(100, 180, 255, 0.2);
+  border-radius: 6px; color: #ddeeff; padding: 6px; font-size: 11px; font-family: inherit; margin-bottom: 6px;
+}
+#contrib-panel .existing-contrib-actions { display: flex; gap: 6px; }
+#contrib-panel .contrib-edit-btn {
+  flex: 1; background: rgba(60, 140, 200, 0.28); border: 1px solid rgba(60, 140, 200, 0.5);
+  border-radius: 5px; color: #aaddff; padding: 6px; font-size: 10px; cursor: pointer;
+}
+#contrib-panel .contrib-edit-btn:hover { background: rgba(60, 140, 200, 0.48); }
+#contrib-panel .existing-contrib-empty { color: #667788; font-size: 11px; padding: 7px 2px; }
 
 .cat-buttons { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; }
 .cat-btn {
@@ -185,7 +207,9 @@ body { overflow: hidden; background: #0a0a0f; font-family: 'Segoe UI', Tahoma, G
       <span class="region-name" id="contrib-region-name">Κορμός</span>
       <button class="close-btn" onclick="closePanel('contrib-panel')">×</button>
     </div>
-    <div class="section-label">Προσθήκη συνεισφοράς με τεκμηρίωση:</div>
+    <div class="section-label existing-heading">Υπάρχουσες συνεισφορές:</div>
+    <div id="existing-contribs" class="existing-contribs"></div>
+    <div class="section-label">Προσθήκη νέας συνεισφοράς με τεκμηρίωση:</div>
     <textarea id="contrib-text" placeholder="Η ιδέα σου..."></textarea>
     <div class="section-label">Κατηγορία:</div>
     <div class="cat-buttons">
@@ -593,7 +617,7 @@ window.togglePanel = function(id) {
   ['contrib-panel', 'asset-panel', 'json-panel', 'asset-edit-panel'].forEach(pid => { document.getElementById(pid).style.display = 'none'; });
   if (!isVisible) panel.style.display = 'block';
 };
-window.openPanel = function(id) { ['contrib-panel', 'asset-panel', 'json-panel', 'asset-edit-panel'].forEach(pid => { if (pid !== id) document.getElementById(pid).style.display = 'none'; }); document.getElementById(id).style.display = 'block'; };
+window.openPanel = function(id) { ['contrib-panel', 'asset-panel', 'json-panel', 'asset-edit-panel'].forEach(pid => { if (pid !== id) document.getElementById(pid).style.display = 'none'; }); document.getElementById(id).style.display = 'block'; if (id === 'contrib-panel') renderExistingContributions(); };
 window.selectCat = function(btn) { document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); state.selectedCategory = btn.dataset.cat; };
 
 window.submitContribution = function() {
@@ -614,7 +638,7 @@ window.submitContribution = function() {
     else pos = mesh.position.clone().add(new THREE.Vector3(0, 1.0, 0));
     addInscription(`"${source.substring(0, 28)}${source.length > 28 ? '...' : ''}"`, pos, region);
   }
-  updateStats(); updateLegend(); closePanel('contrib-panel');
+  updateStats(); updateLegend(); renderExistingContributions(); closePanel('contrib-panel');
 };
 
 function applyVisualUpdate(region) {
@@ -635,6 +659,111 @@ function pulseCore() {
 }
 function updateStats() { const total = state.contributions.length; const strong = state.contributions.filter(c => c.docScore > 5).length; const glow = Math.min(total * 8, 100); document.getElementById('total-contrib').textContent = total; document.getElementById('strong-docs').textContent = strong; document.getElementById('glow-level').textContent = glow + '%'; document.getElementById('asset-count').textContent = state.assets.length; try { if (typeof wristUI !== 'undefined' && wristUI) wristUI.redraw(); } catch(_) {} }
 function updateLegend() { const container = document.getElementById('legend-items'); container.innerHTML = ''; Object.entries(regionsData).forEach(([key, data]) => { const div = document.createElement('div'); div.className = 'legend-item'; div.onclick = () => { state.selectedRegion = key; openPanel('contrib-panel'); document.getElementById('contrib-region-name').textContent = data.name; }; const colorHex = '#' + (data.category ? categoryColors[data.category] : data.color).toString(16).padStart(6, '0'); div.innerHTML = `<div class="legend-dot" style="background:${colorHex};color:${colorHex};"></div><span class="legend-label">${data.name} (${data.contributions})</span>`; container.appendChild(div); }); }
+
+
+function rebuildSculptureFromContributions() {
+  const snapshot = state.contributions.map(c => ({ ...c }));
+  resetSculptureState();
+  snapshot.forEach(replayContribution);
+  updateStats(); updateLegend();
+}
+
+function saveContributionEdit(contribution, textField, sourceField, categoryField) {
+  const text = textField.value.trim();
+  if (!text) {
+    alert('⚠️ Η συνεισφορά δεν μπορεί να είναι κενή.');
+    return;
+  }
+  const source = sourceField.value.trim();
+  contribution.text = text;
+  contribution.source = source || '(χωρίς πηγή — αδύναμη τεκμηρίωση)';
+  contribution.category = categoryField.value || 'theological';
+  contribution.docScore = source.length > 5 ? Math.min(source.length / 10, 10) : 1;
+  rebuildSculptureFromContributions();
+  if (typeof window.exportJSON === 'function') window.exportJSON();
+  renderExistingContributions();
+}
+
+function renderExistingContributions() {
+  const container = document.getElementById('existing-contribs');
+  if (!container) return;
+  container.innerHTML = '';
+
+  const region = state.selectedRegion;
+  if (!region) {
+    container.innerHTML = '<div class="existing-contrib-empty">Επίλεξε πρώτα μια περιοχή του γλυπτού.</div>';
+    return;
+  }
+
+  const contributions = state.contributions.filter(c => c.region === region);
+  if (!contributions.length) {
+    container.innerHTML = '<div class="existing-contrib-empty">Δεν υπάρχουν ακόμη φορτωμένες συνεισφορές εδώ.</div>';
+    return;
+  }
+
+  const labels = {
+    theological: 'Θεολογική',
+    ethical: 'Ηθική',
+    historical: 'Ιστορική',
+    philosophical: 'Φιλοσοφική'
+  };
+  const countLabel = document.createElement('div');
+  countLabel.className = 'existing-contrib-meta';
+  countLabel.textContent = contributions.length + ' ήδη φορτωμένη/ες συνεισφορά/ές';
+  container.appendChild(countLabel);
+
+  contributions.forEach(contribution => {
+    const card = document.createElement('div');
+    card.className = 'existing-contrib';
+
+    const meta = document.createElement('div');
+    meta.className = 'existing-contrib-meta';
+    meta.textContent = 'ID: ' + String(contribution.id);
+
+    const textLabel = document.createElement('div');
+    textLabel.className = 'existing-contrib-field-label';
+    textLabel.textContent = 'Συνεισφορά';
+    const textField = document.createElement('textarea');
+    textField.value = contribution.text || '';
+
+    const sourceLabel = document.createElement('div');
+    sourceLabel.className = 'existing-contrib-field-label';
+    sourceLabel.textContent = 'Πηγή';
+    const sourceField = document.createElement('input');
+    sourceField.type = 'text';
+    sourceField.value = contribution.source && !contribution.source.startsWith('(χωρίς πηγή') ? contribution.source : '';
+
+    const categoryLabel = document.createElement('div');
+    categoryLabel.className = 'existing-contrib-field-label';
+    categoryLabel.textContent = 'Κατηγορία';
+    const categoryField = document.createElement('select');
+    Object.entries(labels).forEach(([value, label]) => {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = label;
+      categoryField.appendChild(option);
+    });
+    categoryField.value = labels[contribution.category] ? contribution.category : 'theological';
+
+    const actions = document.createElement('div');
+    actions.className = 'existing-contrib-actions';
+    const saveButton = document.createElement('button');
+    saveButton.className = 'contrib-edit-btn';
+    saveButton.textContent = '💾 ΑΠΟΘΗΚΕΥΣΗ ΑΛΛΑΓΩΝ';
+    saveButton.onclick = () => saveContributionEdit(contribution, textField, sourceField, categoryField);
+    actions.appendChild(saveButton);
+
+    card.appendChild(meta);
+    card.appendChild(textLabel);
+    card.appendChild(textField);
+    card.appendChild(sourceLabel);
+    card.appendChild(sourceField);
+    card.appendChild(categoryLabel);
+    card.appendChild(categoryField);
+    card.appendChild(actions);
+    container.appendChild(card);
+  });
+}
 
 // ========== 3D ASSET MANAGEMENT ==========
 const gltfLoader = new GLTFLoader(); const fbxLoader = new FBXLoader(); const objLoader = new OBJLoader();
@@ -883,7 +1012,7 @@ function applyImportedData(data) {
       applyVisualUpdate(key);
     });
   }
-  updateStats(); updateLegend();
+  updateStats(); updateLegend(); renderExistingContributions();
   return contribs.length;
 }
 
@@ -1560,7 +1689,7 @@ async function loadPushedContributions() {
         addInscription(`"${c.source.substring(0, 28)}${c.source.length > 28 ? '...' : ''}"`, pos, c.region);
       }
     });
-    updateStats(); updateLegend();
+    updateStats(); updateLegend(); renderExistingContributions();
   } catch (e) { console.warn('contributions.json not available yet:', e); }
 }
 loadPushedContributions();
