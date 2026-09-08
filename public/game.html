@@ -1046,6 +1046,8 @@ window.importJSON = function() {
     if (!raw) { alert('⚠️ Το πεδίο JSON είναι κενό.'); return; }
     const data = JSON.parse(raw);
     const n = applyImportedData(data);
+    activeScenarioId = 'manual';
+    renderScenarioLibrary();
     alert('✅ Συλλογική μνήμη επαναφέρθηκε (' + n + ' συνεισφορές).');
   } catch (e) { alert('❌ Σφάλμα JSON: ' + e.message); }
 };
@@ -1058,6 +1060,8 @@ window.loadJsonFile = function(ev) {
       document.getElementById('json-editor').value = reader.result;
       const data = JSON.parse(reader.result);
       const n = applyImportedData(data);
+      activeScenarioId = 'manual';
+      renderScenarioLibrary();
       alert('✅ Φορτώθηκε "' + file.name + '" — ' + n + ' συνεισφορές.');
     } catch (e) { alert('❌ Σφάλμα ανάγνωσης αρχείου: ' + e.message); }
   };
@@ -1181,8 +1185,9 @@ async function loadScenarioLibrary(force) {
 function selectScenario(entry) {
   if (!entry || !entry.compatible) return;
   try {
-    const count = applyImportedData(entry.data);
+    liveContributions.length = 0;
     activeScenarioId = entry.id;
+    const count = applyImportedData(entry.data);
     document.getElementById('json-editor').value = JSON.stringify(entry.data, null, 2);
     renderScenarioLibrary();
     setScenarioLibraryStatus('✅ Επιλέχθηκε «' + entry.name + '» · φορτώθηκαν ' + count + ' contributions.');
@@ -1806,6 +1811,7 @@ window.closeQuestReveal = function() { document.getElementById('quest-reveal').s
 // Every group that has contributed lights up its region; empty groups stay dark.
 const loadedContribIds = new Set();
 async function loadPushedContributions() {
+  if (activeScenarioId !== 'legacy-contributions') return;
   try {
     const res = await fetch('contributions.json?ts=' + Date.now(), { cache: 'no-store' });
     if (!res.ok) return;
@@ -1854,6 +1860,8 @@ setInterval(loadPushedContributions, 30000);
 // προστέθηκαν ζωντανά σε αυτή τη συνεδρία (μέσω UI ή VR).
 window.restoreDiscovery = async function() {
   try {
+    activeScenarioId = 'legacy-contributions';
+    renderScenarioLibrary();
     resetSculptureState();
     // Re-fetch fresh copy from GitHub-pushed file
     await loadPushedContributions();
