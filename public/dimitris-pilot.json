@@ -1,0 +1,30 @@
+{
+  "contributions": [
+    {
+      "region": "trunk",
+      "text": "Το πρόσωπο και η πράξη",
+      "source": "Πιλοτικό μάθημα Dimitris",
+      "category": "philosophical"
+    },
+    {
+      "region": "head",
+      "text": "Η ανθρώπινη προοπτική",
+      "source": "Προετοιμασία avatar",
+      "category": "theological"
+    }
+  ],
+  "sculpture": {
+    "url": "./models/dimitris-regions-draft.glb",
+    "height": 4.4,
+    "regions": {
+      "head": ["Dimitris_head"],
+      "trunk": ["Dimitris_trunk"],
+      "arms": ["Dimitris_arms"]
+    }
+  },
+  "instance": {
+    "title": "Dimitris — πιλοτικό μάθημα",
+    "subject": "Light Up Legacy",
+    "year": 2026
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "contributions": [
+    {
+      "region": "trunk",
+      "text": "Η πράξη μέσα στον κόσμο",
+      "source": "Πιλοτικό μάθημα Ready Player Me",
+      "category": "philosophical"
+    },
+    {
+      "region": "head",
+      "text": "Η ανθρώπινη συνείδηση",
+      "source": "Προετοιμασία avatar",
+      "category": "theological"
+    }
+  ],
+  "sculpture": {
+    "url": "./models/ready-player-me-regions-draft.glb",
+    "height": 4.4,
+    "regions": {
+      "head": ["ReadyPlayerMe_head"],
+      "trunk": ["ReadyPlayerMe_trunk"],
+      "arms": ["ReadyPlayerMe_arms"]
+    }
+  },
+  "instance": {
+    "title": "Ready Player Me — πιλοτικό μάθημα",
+    "subject": "Light Up Legacy",
+    "year": 2026
+  }
+}

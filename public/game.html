@@ -202,11 +202,12 @@ body { overflow: hidden; background: #0a0a0f; font-family: 'Segoe UI', Tahoma, G
 
 <div id="hud">
   <div id="top-bar" class="hud-panel">
-    <div class="main-title">🏛️ Interpretive Sculpture Pattern</div>
-    <div class="sub-title">Β2 — Μέγας Βασίλειος — 2026</div>
+    <div class="main-title" id="lesson-main-title">🏛️ Interpretive Sculpture Pattern</div>
+    <div class="sub-title" id="lesson-sub-title">Β2 — Μέγας Βασίλειος — 2026</div>
   </div>
 
   <div id="toggle-row">
+    <button class="toggle-btn" id="btn-sculpture">🏛️ Γλυπτό μαθήματος</button>
     <button class="toggle-btn" id="btn-assets" onclick="togglePanel('asset-panel')">📦 3D Assets</button>
     <button class="toggle-btn" id="btn-json" onclick="toggleJsonPanel()">📋 JSON</button>
   </div>
@@ -367,12 +368,24 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
+import { installSculpturePicker } from './sculpture-picker.js';
+import { createSculptureModel, meshesOf, rememberMaterials, lightRegion } from './sculpture-model.js';
 
 // ========== STATE ==========
 const state = {
   selectedRegion: null, selectedCategory: 'theological',
   contributions: [], autoRotate: false, hoveredRegion: null,
   selectedAsset: null, assets: []
+};
+
+const studioPreviewDataUrl = new URLSearchParams(window.location.search).get('dataUrl');
+const CATEGORY_BY_REGION = {
+  base: 'theological', trunk: 'philosophical', arms: 'ethical',
+  head: 'theological', periphery: 'historical', core: 'theological'
+};
+let activeInstance = {
+  class: 'B2', subject: 'Μέγας Βασίλειος', year: 2026,
+  createdAt: '2026-07-17T08:38:50.093Z'
 };
 
 const regionsData = {
@@ -555,6 +568,39 @@ const coreMesh = new THREE.Mesh(new THREE.SphereGeometry(0.5, 16, 16), coreMat);
 coreMesh.position.y = 2.5; sculptureGroup.add(coreMesh); regionMeshes.core = coreMesh;
 const coreLight = new THREE.PointLight(0xffaa44, 1.5, 5); coreLight.position.y = 2.5; sculptureGroup.add(coreLight);
 
+// ========== PREPARED SCULPTURE MODELS ==========
+const fallbackRegions = { head: headMesh, trunk: trunkMesh, arms: [leftArm, rightArm] };
+Object.values(regionMeshes).flatMap(meshesOf).forEach(rememberMaterials);
+const sculptureModel = createSculptureModel({
+  parent: sculptureGroup, regions: regionMeshes, fallback: fallbackRegions, halo,
+  onChange(root) {
+    const box = root ? new THREE.Box3().setFromObject(root) : null;
+    const size = box?.getSize(new THREE.Vector3());
+    const radius = size ? Math.max(1, Math.max(size.x, size.z) / 2.8) : 1;
+    baseGroup.scale.set(radius, 1, radius);
+    peripheryGroup.scale.setScalar(radius);
+    const middle = box ? (box.min.y + box.max.y) / 2 : 2.5;
+    peripheryGroup.position.y = middle;
+    coreMesh.position.y = coreLight.position.y = middle;
+    for (const key of ['head', 'trunk', 'arms']) {
+      const bounds = new THREE.Box3();
+      meshesOf(regionMeshes[key]).forEach(mesh => bounds.expandByObject(mesh));
+      if (regionLights[key]) regionLights[key].position.copy(bounds.getCenter(new THREE.Vector3())).add(new THREE.Vector3(0, 0, 1));
+    }
+    clearHover(); state.selectedRegion = null; closePanel('contrib-panel');
+    if (root && !state.questRevealed) setTimeout(darkenArms, 0);
+  }
+});
+function inscriptionPosition(region) {
+  sculptureGroup.updateMatrixWorld(true);
+  const box = new THREE.Box3();
+  meshesOf(regionMeshes[region]).forEach(mesh => box.expandByObject(mesh));
+  const pos = box.getCenter(new THREE.Vector3());
+  pos.z = box.max.z + 0.35;
+  pos.y += 0.2;
+  return sculptureGroup.worldToLocal(pos);
+}
+
 // Inscriptions
 const inscriptions = [];
 function addInscription(text, position, region) {
@@ -597,6 +643,7 @@ function getAllClickableMeshes() {
 
 // ========== INTERACTION ==========
 function onPointerMove(e) {
+  if (e.target !== canvas) { clearHover(); return; }
   const rect = canvas.getBoundingClientRect();
   mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
   mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
@@ -621,11 +668,13 @@ function clearHover() { state.hoveredRegion = null; state.hoveredAsset = null; c
 
 let lastClickTime = 0;
 function onClick(e) {
+  if (e.target !== canvas) return;
   const now = Date.now(); const isDoubleClick = now - lastClickTime < 300; lastClickTime = now;
   if (state.hoveredRegion) { state.selectedRegion = state.hoveredRegion; openPanel('contrib-panel'); document.getElementById('contrib-region-name').textContent = regionsData[state.hoveredRegion].name; }
   else if (state.hoveredAsset) { selectAsset(state.hoveredAsset.id); if (isDoubleClick) openAssetEditPanel(state.hoveredAsset); }
 }
 function onKeyDown(e) {
+  if (document.querySelector('dialog[open]') || /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
   if (e.code === 'Space') { state.autoRotate = !state.autoRotate; controls.autoRotate = state.autoRotate; controls.autoRotateSpeed = 1; }
   if (e.code === 'Delete' || e.code === 'Backspace') { if (state.selectedAsset) removeAsset(state.selectedAsset); }
 }
@@ -656,10 +705,7 @@ window.submitContribution = function() {
   const rd = regionsData[region]; rd.contributions++; rd.docStrength += docScore; rd.category = state.selectedCategory;
   applyVisualUpdate(region);
   if (hasSource) {
-    const mesh = regionMeshes[region]; let pos;
-    if (Array.isArray(mesh)) pos = mesh[0].position.clone().add(new THREE.Vector3(0, 0.6, 0));
-    else if (mesh.isGroup) pos = new THREE.Vector3(0, 0.5, 2.5);
-    else pos = mesh.position.clone().add(new THREE.Vector3(0, 1.0, 0));
+    const pos = inscriptionPosition(region);
     addInscription(`"${source.substring(0, 28)}${source.length > 28 ? '...' : ''}"`, pos, region);
   }
   updateStats(); updateLegend(); renderExistingContributions(); closePanel('contrib-panel');
@@ -667,11 +713,15 @@ window.submitContribution = function() {
 
 function applyVisualUpdate(region) {
   const rd = regionsData[region]; const catColor = categoryColors[rd.category] || rd.color;
+  if (sculptureModel.config) {
+    lightRegion(regionMeshes[region], catColor, rd.docStrength, rd.contributions > 0);
+  } else {
   const updateMesh = (mesh) => { if (!mesh.material) return; mesh.material = mesh.material.clone(); mesh.material.color.setHex(catColor); const glowIntensity = Math.min(rd.docStrength / 20, 3); mesh.material.emissive.setHex(catColor); mesh.material.emissiveIntensity = glowIntensity; };
   const mesh = regionMeshes[region];
   if (Array.isArray(mesh)) mesh.forEach(updateMesh);
   else if (mesh.isGroup) mesh.traverse(c => { if (c.isMesh) updateMesh(c); });
   else updateMesh(mesh);
+  }
   if (regionLights[region]) { regionLights[region].color.setHex(catColor); regionLights[region].intensity = Math.min(rd.contributions * 0.5, 3); }
   if (rd.docStrength > 5) pulseCore();
 }
@@ -957,7 +1007,7 @@ window.setAnim = function(animName) { const asset = state.selectedAsset; if (!as
 window.removeAssetById = function(id) { const asset = state.assets.find(a => a.id === id); if (asset) removeAsset(asset); };
 
 // ========== JSON IMPORT/EXPORT ==========
-function buildJSON() { return { template: { version: "1.0", regions: ["base","trunk","arms","head","periphery","core"], visualRules: { lighting: "intensity_per_contributions", color: "category_mapping", glow: "documentation_threshold", inscriptions: "primary_source_text" } }, instance: { class: "B2", subject: "Μέγας Βασίλειος", year: 2026, createdAt: new Date().toISOString() }, regions: Object.fromEntries(Object.entries(regionsData).map(([key, data]) => [key, { name: data.name, contributions: data.contributions, docStrength: data.docStrength, category: data.category, label: data.label }])), contributions: state.contributions, assets: state.assets.map(a => ({ id: a.id, name: a.name, type: a.type, url: a.url, scale: a.userScale, position: a.userPos, rotation: a.userRot, animation: a.anim })) }; }
+function buildJSON() { return { sculpture: sculptureModel.config, template: { version: "1.0", regions: ["base","trunk","arms","head","periphery","core"], visualRules: { lighting: "intensity_per_contributions", color: "category_mapping", glow: "documentation_threshold", inscriptions: "primary_source_text" } }, instance: { ...activeInstance }, regions: Object.fromEntries(Object.entries(regionsData).map(([key, data]) => [key, { name: data.name, contributions: data.contributions, docStrength: data.docStrength, category: data.category, label: data.label }])), contributions: state.contributions, assets: state.assets.map(a => ({ id: a.id, name: a.name, type: a.type, url: a.url, scale: a.userScale, position: a.userPos, rotation: a.userRot, animation: a.anim })) }; }
 window.toggleJsonPanel = function() { const panel = document.getElementById('json-panel'); const isVisible = panel.style.display === 'flex'; ['contrib-panel','asset-panel','json-panel','asset-edit-panel'].forEach(pid => { document.getElementById(pid).style.display = 'none'; }); if (!isVisible) { panel.style.display = 'flex'; document.getElementById('json-editor').value = JSON.stringify(buildJSON(), null, 2); loadScenarioLibrary(); } };
 window.exportJSON = function() { document.getElementById('json-editor').value = JSON.stringify(buildJSON(), null, 2); };
 
@@ -1006,10 +1056,7 @@ function replayContribution(c) {
   rd.category = entry.category;
   applyVisualUpdate(c.region);
   if (entry.source || entry.text) {
-    const mesh = regionMeshes[c.region]; let pos;
-    if (Array.isArray(mesh)) pos = mesh[0].position.clone().add(new THREE.Vector3(0, 0.6, 0));
-    else if (mesh.isGroup) pos = new THREE.Vector3(0, 0.5, 2.5);
-    else pos = mesh.position.clone().add(new THREE.Vector3(0, 1.0, 0));
+    const pos = inscriptionPosition(c.region);
     const label = entry.source && entry.source.length > 3 ? entry.source : entry.text;
     addInscription(`"${label.substring(0, 28)}${label.length > 28 ? '...' : ''}"`, pos, c.region);
   }
@@ -1040,12 +1087,51 @@ function applyImportedData(data) {
   return contribs.length;
 }
 
-window.importJSON = function() {
+function applyImportedMetadata(data) {
+  const instance = data && data.instance && typeof data.instance === 'object' ? data.instance : {};
+  activeInstance = {
+    class: instance.class || 'Lesson',
+    subject: instance.subject || instance.title || instance.lesson_id || 'Interactive Sculpture',
+    year: instance.year || new Date().getFullYear(),
+    createdAt: instance.createdAt || new Date().toISOString()
+  };
+  const templateTitle = data && data.template && typeof data.template.title === 'string' ? data.template.title.trim() : '';
+  const lessonTitle = typeof instance.title === 'string' ? instance.title.trim() : '';
+  const mainTitle = lessonTitle || templateTitle || activeInstance.subject;
+  const secondary = [
+    templateTitle && templateTitle !== mainTitle ? templateTitle : '',
+    activeInstance.subject !== mainTitle ? activeInstance.subject : '',
+    activeInstance.year
+  ].filter(Boolean).join(' — ');
+  document.getElementById('lesson-main-title').textContent = `🏛️ ${mainTitle}`;
+  document.getElementById('lesson-sub-title').textContent = secondary || 'Interactive Sculpture';
+}
+
+let currentLessonData = null;
+let importingLesson = false;
+async function applyImportedLessonData(data) {
+  if (!data || typeof data !== 'object') throw new Error('Invalid lesson JSON');
+  importingLesson = true;
+  try {
+    if (Object.prototype.hasOwnProperty.call(data, 'sculpture')) {
+      const commit = await sculptureModel.prepare(data.sculpture);
+      if (!commit || !commit()) return null;
+    }
+    currentLessonData = structuredClone(data);
+    applyImportedMetadata(data);
+    return applyImportedData(data);
+  } finally {
+    importingLesson = false;
+  }
+}
+
+window.importJSON = async function() {
   try {
     const raw = document.getElementById('json-editor').value.trim();
     if (!raw) { alert('⚠️ Το πεδίο JSON είναι κενό.'); return; }
     const data = JSON.parse(raw);
-    const n = applyImportedData(data);
+    const n = await applyImportedLessonData(data);
+    if (n === null) return;
     activeScenarioId = 'manual';
     renderScenarioLibrary();
     alert('✅ Συλλογική μνήμη επαναφέρθηκε (' + n + ' συνεισφορές).');
@@ -1055,11 +1141,12 @@ window.importJSON = function() {
 window.loadJsonFile = function(ev) {
   const file = ev.target.files && ev.target.files[0]; if (!file) return;
   const reader = new FileReader();
-  reader.onload = () => {
+  reader.onload = async () => {
     try {
       document.getElementById('json-editor').value = reader.result;
       const data = JSON.parse(reader.result);
-      const n = applyImportedData(data);
+      const n = await applyImportedLessonData(data);
+      if (n === null) return;
       activeScenarioId = 'manual';
       renderScenarioLibrary();
       alert('✅ Φορτώθηκε "' + file.name + '" — ' + n + ' συνεισφορές.');
@@ -1197,6 +1284,32 @@ function selectScenario(entry) {
 }
 
 window.loadScenarioLibrary = loadScenarioLibrary;
+
+// ========== LESSON SCULPTURE PICKER ==========
+async function changeLessonSculpture(config) {
+  const commit = await sculptureModel.prepare(config);
+  if (!commit) return false;
+  // Snapshot the lesson while the next GLB is loading so contributions survive the switch.
+  const contributions = state.contributions.map(c => ({ ...c }));
+  const stats = Object.fromEntries(Object.entries(regionsData).map(([key, value]) => [key, { ...value }]));
+  if (!commit()) return false;
+  resetSculptureState();
+  contributions.forEach(replayContribution);
+  for (const [key, value] of Object.entries(stats)) {
+    Object.assign(regionsData[key], value);
+    applyVisualUpdate(key);
+  }
+  if (currentLessonData) currentLessonData.sculpture = sculptureModel.config;
+  if (!state.questRevealed) darkenArms();
+  updateStats(); updateLegend();
+  document.getElementById('json-editor').value = JSON.stringify(buildJSON(), null, 2);
+  return true;
+}
+installSculpturePicker({
+  getConfig: () => sculptureModel.config,
+  change: changeLessonSculpture,
+  download: () => window.downloadJSON(),
+});
 
 
 // ========== VR ==========
@@ -1713,14 +1826,18 @@ updateLegend(); updateStats(); renderer.setAnimationLoop(animate);
 // Force the "Arms" region to be fully dark (unlit) until the student
 // discovers the hidden inscription.
 function darkenArms() {
-  regionMeshes.arms.forEach(m => {
-    m.material = m.material.clone();
-    m.material.color.setHex(0x050505);
-    m.material.emissive.setHex(0x000000);
-    m.material.emissiveIntensity = 0;
-    m.material.roughness = 1.0;
-    m.material.metalness = 0.0;
-  });
+  if (sculptureModel.config) {
+    lightRegion(regionMeshes.arms, 0, 0, false);
+  } else {
+    meshesOf(regionMeshes.arms).forEach(m => {
+      m.material = m.material.clone();
+      m.material.color.setHex(0x050505);
+      m.material.emissive.setHex(0x000000);
+      m.material.emissiveIntensity = 0;
+      m.material.roughness = 1.0;
+      m.material.metalness = 0.0;
+    });
+  }
   if (regionLights.arms) regionLights.arms.intensity = 0;
 }
 darkenArms();
@@ -1811,10 +1928,11 @@ window.closeQuestReveal = function() { document.getElementById('quest-reveal').s
 // Every group that has contributed lights up its region; empty groups stay dark.
 const loadedContribIds = new Set();
 async function loadPushedContributions() {
-  if (activeScenarioId !== 'legacy-contributions') return;
+  if (currentLessonData || importingLesson || activeScenarioId !== 'legacy-contributions') return;
   try {
     const res = await fetch('contributions.json?ts=' + Date.now(), { cache: 'no-store' });
     if (!res.ok) return;
+    if (currentLessonData || importingLesson) return;
     const data = await res.json();
     const list = Array.isArray(data) ? data : (data.contributions || []);
     list.forEach((c, i) => {
@@ -1840,19 +1958,23 @@ async function loadPushedContributions() {
       if (c.region === 'arms' && !state.questRevealed) return;
       applyVisualUpdate(c.region);
       if (c.source && c.text) {
-        const mesh = regionMeshes[c.region]; let pos;
-        if (Array.isArray(mesh)) pos = mesh[0].position.clone().add(new THREE.Vector3(0, 0.6, 0));
-        else if (mesh.isGroup) pos = new THREE.Vector3(0, 0.5, 2.5);
-        else pos = mesh.position.clone().add(new THREE.Vector3(0, 1.0, 0));
+        const pos = inscriptionPosition(c.region);
         addInscription(`"${c.source.substring(0, 28)}${c.source.length > 28 ? '...' : ''}"`, pos, c.region);
       }
     });
     updateStats(); updateLegend(); renderExistingContributions();
   } catch (e) { console.warn('contributions.json not available yet:', e); }
 }
-loadPushedContributions();
-// Poll every 30s so newly pushed rows appear during the lesson
-setInterval(loadPushedContributions, 30000);
+if (studioPreviewDataUrl) {
+  fetch(studioPreviewDataUrl, { cache: 'no-store' })
+    .then(res => { if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
+    .then(data => applyImportedLessonData(data))
+    .catch(error => console.warn('Studio Sculpture preview failed:', error));
+} else {
+  loadPushedContributions();
+  // Poll every 30s only for the live GitHub-backed lesson.
+  setInterval(loadPushedContributions, 30000);
+}
 
 // ========== RESTORE POINT (Discovery Mode) ==========
 // Επαναφέρει το γλυπτό στη «συλλογική μνήμη» από το GitHub
@@ -1860,6 +1982,17 @@ setInterval(loadPushedContributions, 30000);
 // προστέθηκαν ζωντανά σε αυτή τη συνεδρία (μέσω UI ή VR).
 window.restoreDiscovery = async function() {
   try {
+    if (currentLessonData) {
+      const additions = [...liveContributions];
+      await applyImportedLessonData(currentLessonData);
+      additions.forEach(c => {
+        if (!loadedContribIds.has(String(c.id))) replayContribution(c);
+      });
+      liveContributions.length = 0;
+      liveContributions.push(...additions);
+      updateStats(); updateLegend();
+      return;
+    }
     activeScenarioId = 'legacy-contributions';
     renderScenarioLibrary();
     resetSculptureState();

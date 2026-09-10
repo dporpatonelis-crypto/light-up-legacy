@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "models": [
+    {
+      "id": "bishop",
+      "name": "Bishop — Επίσκοπος",
+      "description": "Εγκεκριμένη αντιστοίχιση: κεφαλή με μίτρα, κορμός με άμφια, χέρια με μανίκια και ράβδο.",
+      "sculpture": {
+        "url": "./models/bishop-regions-draft.glb",
+        "height": 4.4,
+        "regions": {
+          "head": ["Bishop_head"],
+          "trunk": ["Bishop_trunk"],
+          "arms": ["Bishop_arms"]
+        }
+      }
+    },
+    {
+      "id": "dimitris",
+      "name": "Dimitris — ανθρώπινο avatar",
+      "description": "Προετοιμασμένη avatar μορφή: κεφαλή με πρόσωπο, κορμός με ρούχα και χέρια με μανίκια.",
+      "sculpture": {
+        "url": "./models/dimitris-regions-draft.glb",
+        "height": 4.4,
+        "regions": {
+          "head": ["Dimitris_head"],
+          "trunk": ["Dimitris_trunk"],
+          "arms": ["Dimitris_arms"]
+        }
+      }
+    },
+    {
+      "id": "ready-player-me-male",
+      "name": "Ready Player Me — άνδρας με γραβάτα",
+      "description": "Προετοιμασμένο Ready Player Me avatar: κεφαλή, κορμός με ένδυση και χέρια σε στάση Τ.",
+      "sculpture": {
+        "url": "./models/ready-player-me-regions-draft.glb",
+        "height": 4.4,
+        "regions": {
+          "head": ["ReadyPlayerMe_head"],
+          "trunk": ["ReadyPlayerMe_trunk"],
+          "arms": ["ReadyPlayerMe_arms"]
+        }
+      }
+    }
+  ]
+}

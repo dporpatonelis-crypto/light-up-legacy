@@ -1,0 +1,48 @@
+{
+  "contributions": [
+    {
+      "region": "base",
+      "text": "Διάκριση κειμένου και ερμηνείας",
+      "source": "Η ανάγνωση του Παροιμιών 8,22 ως αφετηρία της υπεράσπισης.",
+      "category": "theological"
+    },
+    {
+      "region": "trunk",
+      "text": "Πρόθεση και κόστος",
+      "source": "Το αγέννητον και η αποφυγή δύο πρώτων αρχών.",
+      "category": "philosophical"
+    },
+    {
+      "region": "core",
+      "text": "Δοκιμή της γέφυρας",
+      "source": "Η απόσταση που ένας κτιστός μεσίτης δεν μπορεί να υπερβεί μόνος του.",
+      "category": "theological"
+    },
+    {
+      "region": "head",
+      "text": "Σύνθεση τριών κριτηρίων",
+      "source": "Η σύνθεση σωτηρίας, αμεταβλητότητας και λατρείας.",
+      "category": "theological"
+    }
+  ],
+  "sculpture": {
+    "url": "./models/bishop-regions-draft.glb",
+    "height": 4.4,
+    "regions": {
+      "head": [
+        "Bishop_head"
+      ],
+      "trunk": [
+        "Bishop_trunk"
+      ],
+      "arms": [
+        "Bishop_arms"
+      ]
+    }
+  },
+  "instance": {
+    "title": "Bishop — δοκιμή αντιστοίχισης",
+    "subject": "Light Up Legacy",
+    "year": 2026
+  }
+}
