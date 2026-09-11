@@ -36,6 +36,7 @@ body { overflow: hidden; background: #0a0a0f; font-family: 'Segoe UI', Tahoma, G
 }
 #top-bar .main-title { color: #aaccff; font-size: 14px; letter-spacing: 2px; text-transform: uppercase; }
 #top-bar .sub-title { color: #667788; font-size: 11px; margin-top: 2px; }
+#audio-status { color: #8eacd0; font-size: 10px; min-height: 13px; margin-top: 3px; }
 
 #legend { position: absolute; top: 80px; left: 16px; min-width: 170px; }
 #legend-items { display: flex; flex-direction: column; gap: 5px; }
@@ -204,10 +205,12 @@ body { overflow: hidden; background: #0a0a0f; font-family: 'Segoe UI', Tahoma, G
   <div id="top-bar" class="hud-panel">
     <div class="main-title" id="lesson-main-title">🏛️ Interpretive Sculpture Pattern</div>
     <div class="sub-title" id="lesson-sub-title">Β2 — Μέγας Βασίλειος — 2026</div>
+    <div id="audio-status" aria-live="polite"></div>
   </div>
 
   <div id="toggle-row">
     <button class="toggle-btn" id="btn-sculpture">🏛️ Γλυπτό μαθήματος</button>
+    <button class="toggle-btn" id="btn-audio" title="Ενεργοποίηση ήχου και lipsync">🔊 Ήχος</button>
     <button class="toggle-btn" id="btn-assets" onclick="togglePanel('asset-panel')">📦 3D Assets</button>
     <button class="toggle-btn" id="btn-json" onclick="toggleJsonPanel()">📋 JSON</button>
   </div>
@@ -323,6 +326,7 @@ body { overflow: hidden; background: #0a0a0f; font-family: 'Segoe UI', Tahoma, G
       🖱️ <b>Scroll</b>: Zoom<br>
       👆 <b>Click</b>: Επιλογή περιοχής / Asset<br>
       🥽 <b>VR</b>: Enter VR<br>
+      🔊 <b>Ήχος</b>: Reward WAV + lipsync<br>
       ⌨️ <b>Space</b>: Auto-rotate<br>
       🗑️ <b>Del</b>: Διαγραφή asset<br>
       ⚙️ <b>Διπλό click asset</b>: Edit panel
@@ -370,6 +374,7 @@ import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 import { installSculpturePicker } from './sculpture-picker.js';
 import { createSculptureModel, meshesOf, rememberMaterials, lightRegion } from './sculpture-model.js';
+import { createVoiceReward } from './voice-reward.js';
 
 // ========== STATE ==========
 const state = {
@@ -386,6 +391,24 @@ const CATEGORY_BY_REGION = {
 let activeInstance = {
   class: 'B2', subject: 'Μέγας Βασίλειος', year: 2026,
   createdAt: '2026-07-17T08:38:50.093Z'
+};
+let lessonAudioConfig = null;
+const voiceReward = createVoiceReward({
+  onStatus(message) {
+    const status = document.getElementById('audio-status');
+    if (status) status.textContent = message || '';
+  }
+});
+document.getElementById('btn-audio').onclick = async () => {
+  try {
+    await voiceReward.unlock();
+    const status = document.getElementById('audio-status');
+    if (status) status.textContent = lessonAudioConfig ? '🔊 Ήχος ενεργός · lipsync Ready Player Me διαθέσιμο όταν υπάρχει.' : '🔊 Ο ήχος ενεργοποιήθηκε για το μάθημα.';
+  } catch (error) {
+    const status = document.getElementById('audio-status');
+    if (status) status.textContent = 'Ο browser δεν υποστηρίζει Web Audio.';
+    console.warn('Audio unlock failed:', error);
+  }
 };
 
 const regionsData = {
@@ -574,6 +597,7 @@ Object.values(regionMeshes).flatMap(meshesOf).forEach(rememberMaterials);
 const sculptureModel = createSculptureModel({
   parent: sculptureGroup, regions: regionMeshes, fallback: fallbackRegions, halo,
   onChange(root) {
+    voiceReward.attach(root ? regionMeshes.head : null);
     const box = root ? new THREE.Box3().setFromObject(root) : null;
     const size = box?.getSize(new THREE.Vector3());
     const radius = size ? Math.max(1, Math.max(size.x, size.z) / 2.8) : 1;
@@ -702,8 +726,11 @@ window.submitContribution = function() {
   const contribution = { id: Date.now(), region, text, source: source || '(χωρίς πηγή — αδύναμη τεκμηρίωση)', category: state.selectedCategory, docScore, timestamp: new Date().toISOString() };
   state.contributions.push(contribution);
   liveContributions.push(contribution);
-  const rd = regionsData[region]; rd.contributions++; rd.docStrength += docScore; rd.category = state.selectedCategory;
+  const rd = regionsData[region];
+  const firstLight = rd.contributions === 0;
+  rd.contributions++; rd.docStrength += docScore; rd.category = state.selectedCategory;
   applyVisualUpdate(region);
+  if (firstLight) voiceReward.play(region);
   if (hasSource) {
     const pos = inscriptionPosition(region);
     addInscription(`"${source.substring(0, 28)}${source.length > 28 ? '...' : ''}"`, pos, region);
@@ -1007,7 +1034,11 @@ window.setAnim = function(animName) { const asset = state.selectedAsset; if (!as
 window.removeAssetById = function(id) { const asset = state.assets.find(a => a.id === id); if (asset) removeAsset(asset); };
 
 // ========== JSON IMPORT/EXPORT ==========
-function buildJSON() { return { sculpture: sculptureModel.config, template: { version: "1.0", regions: ["base","trunk","arms","head","periphery","core"], visualRules: { lighting: "intensity_per_contributions", color: "category_mapping", glow: "documentation_threshold", inscriptions: "primary_source_text" } }, instance: { ...activeInstance }, regions: Object.fromEntries(Object.entries(regionsData).map(([key, data]) => [key, { name: data.name, contributions: data.contributions, docStrength: data.docStrength, category: data.category, label: data.label }])), contributions: state.contributions, assets: state.assets.map(a => ({ id: a.id, name: a.name, type: a.type, url: a.url, scale: a.userScale, position: a.userPos, rotation: a.userRot, animation: a.anim })) }; }
+function buildJSON() {
+  const data = { sculpture: sculptureModel.config, template: { version: "1.0", regions: ["base","trunk","arms","head","periphery","core"], visualRules: { lighting: "intensity_per_contributions", color: "category_mapping", glow: "documentation_threshold", inscriptions: "primary_source_text" } }, instance: { ...activeInstance }, regions: Object.fromEntries(Object.entries(regionsData).map(([key, data]) => [key, { name: data.name, contributions: data.contributions, docStrength: data.docStrength, category: data.category, label: data.label }])), contributions: state.contributions, assets: state.assets.map(a => ({ id: a.id, name: a.name, type: a.type, url: a.url, scale: a.userScale, position: a.userPos, rotation: a.userRot, animation: a.anim })) };
+  if (lessonAudioConfig) data.audio = structuredClone(lessonAudioConfig);
+  return data;
+}
 window.toggleJsonPanel = function() { const panel = document.getElementById('json-panel'); const isVisible = panel.style.display === 'flex'; ['contrib-panel','asset-panel','json-panel','asset-edit-panel'].forEach(pid => { document.getElementById(pid).style.display = 'none'; }); if (!isVisible) { panel.style.display = 'flex'; document.getElementById('json-editor').value = JSON.stringify(buildJSON(), null, 2); loadScenarioLibrary(); } };
 window.exportJSON = function() { document.getElementById('json-editor').value = JSON.stringify(buildJSON(), null, 2); };
 
@@ -1118,6 +1149,8 @@ async function applyImportedLessonData(data) {
       if (!commit || !commit()) return null;
     }
     currentLessonData = structuredClone(data);
+    lessonAudioConfig = data.audio && typeof data.audio === 'object' ? structuredClone(data.audio) : null;
+    voiceReward.configure(lessonAudioConfig);
     applyImportedMetadata(data);
     return applyImportedData(data);
   } finally {
@@ -1269,12 +1302,13 @@ async function loadScenarioLibrary(force) {
   }
 }
 
-function selectScenario(entry) {
+async function selectScenario(entry) {
   if (!entry || !entry.compatible) return;
   try {
     liveContributions.length = 0;
     activeScenarioId = entry.id;
-    const count = applyImportedData(entry.data);
+    const count = await applyImportedLessonData(entry.data);
+    if (count === null) return;
     document.getElementById('json-editor').value = JSON.stringify(entry.data, null, 2);
     renderScenarioLibrary();
     setScenarioLibraryStatus('✅ Επιλέχθηκε «' + entry.name + '» · φορτώθηκαν ' + count + ' contributions.');
@@ -1629,8 +1663,10 @@ const wristUI = (function() {
     state.contributions.push(contribution);
     liveContributions.push(contribution);
     const rd = regionsData[region];
+    const firstLight = rd.contributions === 0;
     rd.contributions++; rd.docStrength += contribution.docScore; rd.category = state.selectedCategory;
     try { applyVisualUpdate(region); } catch(_) {}
+    if (firstLight) voiceReward.play(region);
     try { updateStats(); updateLegend(); } catch(_) {}
     draw();
   }
@@ -1816,6 +1852,7 @@ function animate() {
   updateXRLocomotion(dt);
   teleport.update();
   updateWristHover();
+  voiceReward.update();
   renderer.render(scene, camera);
 }
 
@@ -1908,6 +1945,7 @@ setInterval(() => {
 state.questRevealed = false;
 function revealQuest() {
   if (state.questRevealed) return;
+  const rewardArms = !state.questRevealed;
   state.questRevealed = true;
   document.getElementById('quest-reveal').style.display = 'block';
   const hint = document.getElementById('quest-hint-text');
@@ -1917,6 +1955,7 @@ function revealQuest() {
   regionsData.arms.contributions = Math.max(regionsData.arms.contributions, 1);
   regionsData.arms.docStrength = Math.max(regionsData.arms.docStrength, 10);
   applyVisualUpdate('arms');
+  if (rewardArms) voiceReward.play('arms');
   // A little celebratory core pulse
   pulseCore();
   updateStats(); updateLegend();

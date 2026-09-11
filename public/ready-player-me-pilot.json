@@ -26,5 +26,24 @@
     "title": "Ready Player Me — πιλοτικό μάθημα",
     "subject": "Light Up Legacy",
     "year": 2026
+  },
+  "audio": {
+    "enabled": true,
+    "oncePerRegion": true,
+    "volume": 0.9,
+    "rewards": {
+      "head": {
+        "url": "./audio/freedom/eleftheria_inner_final.wav",
+        "label": "Επιβράβευση κεφαλής · εσωτερική ελευθερία"
+      },
+      "trunk": {
+        "url": "./audio/freedom/eleftheria_inner_01_bondage.wav",
+        "label": "Επιβράβευση κορμού · από τη δέσμευση στην ελευθερία"
+      },
+      "arms": {
+        "url": "./audio/freedom/eleftheria_social_final.wav",
+        "label": "Επιβράβευση χεριών · κοινωνική ελευθερία"
+      }
+    }
   }
 }
