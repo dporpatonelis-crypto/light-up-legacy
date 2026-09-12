@@ -4,8 +4,11 @@
  * Εγκατάσταση:
  * 1. Άνοιξε το Google Slides και επίλεξε Extensions → Apps Script.
  * 2. Βάλε τον GitHub token μόνο στα Script Properties ως GITHUB_TOKEN.
- * 3. Κάνε reload το Slides και χρησιμοποίησε το μενού
- *    📋 Πίνακας Έρευνας → 🔄 Ενημέρωση Light Up Legacy.
+ * 3. Προαιρετικά όρισε INTERACTIVE_REPO και INTERACTIVE_FILE_PATH στα
+ *    Script Properties (οι προεπιλογές είναι Interactive-sculpture και
+ *    data/slides-discoveries.json).
+ * 4. Κάνε reload το Slides και χρησιμοποίησε το μενού
+ *    📋 Πίνακας Έρευνας για ένα ή και τα δύο repos.
  *
  * Το script διαβάζει μόνο την πρώτη διαφάνεια. Τα πέντε γνωστά πεδία
  * αντιστοιχούν στις περιοχές του Light Up Legacy. Για την Περιφέρεια ή
@@ -18,6 +21,9 @@ const CONFIG = Object.freeze({
   repo: 'light-up-legacy',
   filePath: 'public/contributions.json',
   branch: SCRIPT_PROPERTIES.getProperty('BRANCH') || 'main',
+  interactiveRepo: SCRIPT_PROPERTIES.getProperty('INTERACTIVE_REPO') || 'Interactive-sculpture',
+  interactiveFilePath: SCRIPT_PROPERTIES.getProperty('INTERACTIVE_FILE_PATH') || 'data/slides-discoveries.json',
+  interactiveBranch: SCRIPT_PROPERTIES.getProperty('INTERACTIVE_BRANCH') || SCRIPT_PROPERTIES.getProperty('BRANCH') || 'main',
   token: SCRIPT_PROPERTIES.getProperty('GITHUB_TOKEN'),
   // Default: η πρώτη διαφάνεια είναι η μοναδική πηγή για το managed snapshot.
   // Βάλε PRESERVE_UNMANAGED=true μόνο αν θέλεις να κρατήσεις παλιές
@@ -61,11 +67,65 @@ const CATEGORY_BY_REGION = {
   core: 'theological'
 };
 
+const REGION_LABELS = {
+  base: 'Βάση',
+  trunk: 'Κορμός',
+  arms: 'Χέρια',
+  head: 'Κεφαλή',
+  periphery: 'Περιφέρεια',
+  core: 'Εσωτερικός Πυρήνας'
+};
+
+const MARKER_POSITION_BY_REGION = {
+  base: { x: -2.5, y: 0.75, z: -2.1 },
+  trunk: { x: -2.0, y: 2.15, z: -2.0 },
+  arms: { x: 1.7, y: 1.15, z: -2.1 },
+  head: { x: 0, y: 4.5, z: -1.8 },
+  periphery: { x: 3.1, y: 2.5, z: 0.4 },
+  core: { x: 0, y: 2.5, z: 1.7 }
+};
+
 function updateLightUpFromSlides() {
+  return updateAllFromSlides_({ lightUp: true, interactive: false });
+}
+
+function updateInteractiveSculptureFromSlides() {
+  return updateAllFromSlides_({ lightUp: false, interactive: true });
+}
+
+function updateAllFromSlides() {
+  return updateAllFromSlides_({ lightUp: true, interactive: true });
+}
+
+function updateAllFromSlides_(options) {
   const presentation = getPresentation_();
   const now = new Date().toISOString();
   const contributions = parseFirstSlide_(presentation, now);
-  const target = readTargetFile_();
+  const results = {};
+
+  if (options.lightUp) {
+    results.lightUp = writeLightUpSnapshot_(presentation, contributions, now);
+  }
+  if (options.interactive) {
+    results.interactiveSculpture = writeInteractiveSculptureSnapshot_(
+      presentation,
+      contributions,
+      now
+    );
+  }
+
+  Logger.log(
+    '✅ Συγχρονισμός ολοκληρώθηκε: ' +
+      Object.keys(results).join(' + ') +
+      ' · ' +
+      contributions.length +
+      ' πεδία.'
+  );
+  return results;
+}
+
+function writeLightUpSnapshot_(presentation, contributions, syncedAt) {
+  const target = readTargetFile_(CONFIG);
   const previous = target.data && Array.isArray(target.data.contributions)
     ? target.data.contributions
     : [];
@@ -82,13 +142,76 @@ function updateLightUpFromSlides() {
       type: 'google-slides',
       presentationId: presentation.getId(),
       slideObjectId: getObjectId_(getFirstSlide_(presentation), FIRST_SLIDE_OBJECT_ID),
-      syncedAt: now
+      syncedAt: syncedAt
     },
     contributions: preserved.concat(contributions)
   };
 
   pushToGitHub_(JSON.stringify(payload, null, 2), target.sha);
-  Logger.log('✅ Light Up Legacy ενημερώθηκε: ' + contributions.length + ' πεδία.');
+  return payload;
+}
+
+function writeInteractiveSculptureSnapshot_(presentation, contributions, syncedAt) {
+  const target = interactiveTarget_();
+  const payload = buildInteractiveSculpturePayload_(
+    presentation,
+    contributions,
+    syncedAt
+  );
+
+  pushToGitHubTarget_(
+    JSON.stringify(payload, null, 2),
+    target,
+    readTargetFile_(target).sha
+  );
+  return payload;
+}
+
+function buildInteractiveSculpturePayload_(presentation, contributions, syncedAt) {
+  return {
+    type: 'interactive-sculpture-discovery-snapshot',
+    version: 1,
+    mode: 'slides-discovery',
+    topic: presentation.getName() || 'δόγμα και βίωμα',
+    source: {
+      type: 'google-slides',
+      presentationId: presentation.getId(),
+      slideObjectId: getObjectId_(getFirstSlide_(presentation), FIRST_SLIDE_OBJECT_ID),
+      syncedAt: syncedAt
+    },
+    discoveries: contributions.map(function(contribution) {
+      const region = contribution.region;
+      const label = REGION_LABELS[region] || region;
+      const fullText = contribution.text;
+      return {
+        id: contribution.id,
+        syncSource: contribution.syncSource,
+        presentationId: contribution.presentationId,
+        slideObjectId: contribution.elementObjectId,
+        region: region,
+        team: contribution.group || contribution.student || label,
+        student: contribution.student,
+        group: contribution.group,
+        category: contribution.category,
+        markerPosition: MARKER_POSITION_BY_REGION[region] || { x: 0, y: 2.5, z: -2.5 },
+        shortText: fullText.length > 90 ? fullText.substring(0, 87) + '…' : fullText,
+        fullText: fullText,
+        source: contribution.source,
+        timestamp: contribution.timestamp
+      };
+    })
+  };
+}
+
+function previewInteractiveSculpturePayload() {
+  const presentation = getPresentation_();
+  const syncedAt = new Date().toISOString();
+  const payload = buildInteractiveSculpturePayload_(
+    presentation,
+    parseFirstSlide_(presentation, syncedAt),
+    syncedAt
+  );
+  Logger.log(JSON.stringify(payload, null, 2));
   return payload;
 }
 
@@ -262,9 +385,18 @@ function parseMetadata_(raw) {
   };
 }
 
-function readTargetFile_() {
+function interactiveTarget_() {
+  return {
+    owner: CONFIG.owner,
+    repo: CONFIG.interactiveRepo,
+    filePath: CONFIG.interactiveFilePath,
+    branch: CONFIG.interactiveBranch
+  };
+}
+
+function readTargetFile_(target) {
   assertToken_();
-  const response = UrlFetchApp.fetch(apiUrl_() + '?ref=' + encodeURIComponent(CONFIG.branch), {
+  const response = UrlFetchApp.fetch(apiUrl_(target) + '?ref=' + encodeURIComponent(target.branch), {
     method: 'get',
     headers: githubHeaders_(),
     muteHttpExceptions: true
@@ -289,22 +421,35 @@ function readTargetFile_() {
       data: decoded ? JSON.parse(decoded) : {}
     };
   } catch (_) {
-    throw new Error('Το public/contributions.json δεν είναι έγκυρο JSON.');
+    throw new Error('Το ' + target.filePath + ' δεν είναι έγκυρο JSON.');
   }
 }
 
 function pushToGitHub_(content, sha) {
-  assertToken_();
-  const payload = {
-    message: '🕯️ Συγχρονισμός δόγμα και βίωμα από Google Slides',
-    content: Utilities.base64Encode(
-      Utilities.newBlob(content, 'application/json', 'contributions.json').getBytes()
-    ),
+  const target = {
+    owner: CONFIG.owner,
+    repo: CONFIG.repo,
+    filePath: CONFIG.filePath,
     branch: CONFIG.branch
+  };
+  pushToGitHubTarget_(content, target, sha);
+}
+
+function pushToGitHubTarget_(content, target, sha) {
+  assertToken_();
+  const isInteractive = target.repo === CONFIG.interactiveRepo;
+  const payload = {
+    message: isInteractive
+      ? '🔍 Συγχρονισμός ανακαλύψεων δόγμα και βίωμα από Google Slides'
+      : '🕯️ Συγχρονισμός δόγμα και βίωμα από Google Slides',
+    content: Utilities.base64Encode(
+      Utilities.newBlob(content, 'application/json', 'slides-sync.json').getBytes()
+    ),
+    branch: target.branch
   };
   if (sha) payload.sha = sha;
 
-  const response = UrlFetchApp.fetch(apiUrl_(), {
+  const response = UrlFetchApp.fetch(apiUrl_(target), {
     method: 'put',
     headers: githubHeaders_(),
     contentType: 'application/json',
@@ -313,16 +458,16 @@ function pushToGitHub_(content, sha) {
   });
   const code = response.getResponseCode();
   if (code !== 200 && code !== 201) {
-    throw new Error('GitHub push failed (HTTP ' + code + ').');
+    throw new Error('GitHub push failed for ' + target.repo + ' (HTTP ' + code + ').');
   }
 }
 
-function apiUrl_() {
-  const encodedPath = CONFIG.filePath
+function apiUrl_(target) {
+  const encodedPath = target.filePath
     .split('/')
     .map(part => encodeURIComponent(part))
     .join('/');
-  return 'https://api.github.com/repos/' + CONFIG.owner + '/' + CONFIG.repo + '/contents/' + encodedPath;
+  return 'https://api.github.com/repos/' + target.owner + '/' + target.repo + '/contents/' + encodedPath;
 }
 
 function githubHeaders_() {
@@ -344,6 +489,8 @@ function onOpen() {
   SlidesApp.getUi()
     .createMenu('📋 Πίνακας Έρευνας')
     .addItem('🔄 Ενημέρωση Light Up Legacy', 'updateLightUpFromSlides')
+    .addItem('🔍 Ενημέρωση Interactive Sculpture', 'updateInteractiveSculptureFromSlides')
+    .addItem('🌐 Ενημέρωση και των δύο', 'updateAllFromSlides')
     .addItem('🔎 Προεπισκόπηση συγχρονισμού', 'previewLightUpPayload')
     .addToUi();
 }
