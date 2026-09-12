@@ -1,23 +1,88 @@
 {
-  "_comment": "Αυτό το αρχείο ενημερώνεται από το Google Sheet → script → git push. Οι μαθητές γράφουν εδώ και το γλυπτό ανάβει στα σημεία που δούλεψαν.",
+  "_comment": "Ενημερώνεται από Google Slides → Extensions → Apps Script.",
+  "version": 2,
+  "topic": "δόγμα και βίωμα",
+  "source": {
+    "type": "google-slides",
+    "presentationId": "1kmnmtbIiGHRrPHlaKNaJ_QJPtuPZXSzGALTppAGILY0",
+    "slideObjectId": "christ_events_response_board_v1",
+    "syncedAt": "2026-09-12T05:54:58.791Z"
+  },
   "contributions": [
     {
+      "id": "slides:1kmnmtbIiGHRrPHlaKNaJ_QJPtuPZXSzGALTppAGILY0:christ_event_birth_significance",
+      "syncSource": "google-slides:dogma-vioma",
+      "presentationId": "1kmnmtbIiGHRrPHlaKNaJ_QJPtuPZXSzGALTppAGILY0",
+      "slideObjectId": "christ_events_response_board_v1",
+      "elementObjectId": "christ_event_birth_significance",
       "region": "head",
-      "text": "Η Θεολογία ως επιστήμη του Θεού",
-      "source": "Μέγας Βασίλειος, Εἰς τὸ Ἅγιον Βάπτισμα",
-      "category": "theological"
+      "text": "Πάθος: υπερηφάνεια / αυτοθέωση\nΘεραπεία: ταπείνωση του νοός",
+      "source": "Google Slides · Κεφαλή",
+      "student": "",
+      "group": "",
+      "category": "theological",
+      "docScore": 2.2,
+      "timestamp": "2026-09-12T05:54:58.791Z"
     },
     {
-      "region": "base",
-      "text": "Η παιδεία ως θεμέλιο κάθε αρετής",
-      "source": "Μέγας Βασίλειος, Πρὸς τοὺς Νέους",
-      "category": "ethical"
-    },
-    {
+      "id": "slides:1kmnmtbIiGHRrPHlaKNaJ_QJPtuPZXSzGALTppAGILY0:christ_event_teaching_significance",
+      "syncSource": "google-slides:dogma-vioma",
+      "presentationId": "1kmnmtbIiGHRrPHlaKNaJ_QJPtuPZXSzGALTppAGILY0",
+      "slideObjectId": "christ_events_response_board_v1",
+      "elementObjectId": "christ_event_teaching_significance",
       "region": "arms",
-      "text": "Η Βασιλειάδα — έμπρακτη φιλανθρωπία",
-      "source": "Γρηγόριος Θεολόγος, Ἐπιτάφιος εἰς Μέγαν Βασίλειον",
-      "category": "ethical"
+      "text": "Πάθος: έλλειψη φιλανθρωπίας\nΘεραπεία: έμπρακτη αγάπη",
+      "source": "Google Slides · Χέρια",
+      "student": "",
+      "group": "",
+      "category": "ethical",
+      "docScore": 2.1,
+      "timestamp": "2026-09-12T05:54:58.791Z"
+    },
+    {
+      "id": "slides:1kmnmtbIiGHRrPHlaKNaJ_QJPtuPZXSzGALTppAGILY0:christ_event_miracles_significance",
+      "syncSource": "google-slides:dogma-vioma",
+      "presentationId": "1kmnmtbIiGHRrPHlaKNaJ_QJPtuPZXSzGALTppAGILY0",
+      "slideObjectId": "christ_events_response_board_v1",
+      "elementObjectId": "christ_event_miracles_significance",
+      "region": "trunk",
+      "text": "Πάθος: φιληδονία / ανάγκη\nΘεραπεία: εκούσια εγκράτεια",
+      "source": "Google Slides · Κορμός",
+      "student": "",
+      "group": "",
+      "category": "philosophical",
+      "docScore": 2.2,
+      "timestamp": "2026-09-12T05:54:58.791Z"
+    },
+    {
+      "id": "slides:1kmnmtbIiGHRrPHlaKNaJ_QJPtuPZXSzGALTppAGILY0:christ_event_passion_significance",
+      "syncSource": "google-slides:dogma-vioma",
+      "presentationId": "1kmnmtbIiGHRrPHlaKNaJ_QJPtuPZXSzGALTppAGILY0",
+      "slideObjectId": "christ_events_response_board_v1",
+      "elementObjectId": "christ_event_passion_significance",
+      "region": "base",
+      "text": "Πάθος: πλάνη / αποπροσανατολισμός\nΘεραπεία: μετάνοια",
+      "source": "Google Slides · Βάση",
+      "student": "",
+      "group": "",
+      "category": "theological",
+      "docScore": 2,
+      "timestamp": "2026-09-12T05:54:58.791Z"
+    },
+    {
+      "id": "slides:1kmnmtbIiGHRrPHlaKNaJ_QJPtuPZXSzGALTppAGILY0:christ_event_resurrection_significance",
+      "syncSource": "google-slides:dogma-vioma",
+      "presentationId": "1kmnmtbIiGHRrPHlaKNaJ_QJPtuPZXSzGALTppAGILY0",
+      "slideObjectId": "christ_events_response_board_v1",
+      "elementObjectId": "christ_event_resurrection_significance",
+      "region": "core",
+      "text": "Πάθος: αχαριστία / απομόνωση\nΘεραπεία: ευχαριστία και θέωση",
+      "source": "Google Slides · Εσωτερικός Πυρήνας",
+      "student": "",
+      "group": "",
+      "category": "theological",
+      "docScore": 3.4,
+      "timestamp": "2026-09-12T05:54:58.791Z"
     }
   ]
 }
