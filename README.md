@@ -269,3 +269,20 @@ GitHub Pages / Lovable ανανεώνει το site
 ---
 
 *Interpretive Sculpture Pattern — Β2 / Μέγας Βασίλειος / 2026*
+
+
+## 7. Δύο ανεξάρτητοι τρόποι ανακάλυψης
+
+Η επιγραφή «Ζήτησε τη Βασιλειάδα» είναι το παλιό, ενσωματωμένο demo quest του `public/game.html`. Δημιουργείται κατά την αρχικοποίηση της εφαρμογής, γι’ αυτό εμφανίζεται πάντα στο Light Up Legacy και δεν προέρχεται από το Google Slides snapshot.
+
+Για τα πεδία της πρώτης διαφάνειας υπάρχει πλέον ξεχωριστό Discovery Mode στο [Interactive Sculpture](https://dporpatonelis-crypto.github.io/Interactive-sculpture/?scenario=slides-discovery). Εκεί κάθε μη κενό πεδίο του Slide δημιουργείται ως κρυφό marker· με την αποκάλυψη εμφανίζεται το πλήρες κείμενο του μαθητή και φωτίζεται η αντίστοιχη περιοχή.
+
+## 8. Συγχρονισμός από «δόγμα και βίωμα»
+
+Το bound Apps Script στο Google Slides διαβάζει μόνο την πρώτη διαφάνεια και από το μενού **📋 Πίνακας Έρευνας** προσφέρει:
+
+- **Ενημέρωση Light Up Legacy** → `public/contributions.json`
+- **Ενημέρωση Interactive Sculpture** → `data/slides-discoveries.json`
+- **Ενημέρωση και των δύο** → γράφει και τα δύο snapshots με μία εκτέλεση
+
+Το `GITHUB_TOKEN` παραμένει μόνο στα Script Properties. Τα snapshots κρατούν το `presentationId`, το object id του πεδίου και το `syncedAt`, ώστε κάθε εύρημα να παραμένει συνδεδεμένο με το αρχικό Slide.
