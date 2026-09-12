@@ -9,6 +9,17 @@ export function meshesOf(value) {
   return meshes;
 }
 
+// Human avatars keep their rig in the prepared GLB. Use the upper torso bones
+// as a semantic heart anchor instead of the whole-model bounding-box midpoint.
+export function heartAnchorPosition(root, parent, blend = 0.35) {
+  const spine1 = root?.getObjectByName('Spine1');
+  if (!spine1 || !parent) return null;
+  const point = spine1.getWorldPosition(new THREE.Vector3());
+  const spine2 = root.getObjectByName('Spine2');
+  if (spine2) point.lerp(spine2.getWorldPosition(new THREE.Vector3()), blend);
+  return parent.worldToLocal(point);
+}
+
 const originals = new WeakMap();
 export function rememberMaterials(mesh) {
   for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
