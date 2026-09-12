@@ -410,7 +410,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 import { installSculpturePicker } from './sculpture-picker.js';
-import { createSculptureModel, meshesOf, rememberMaterials, lightRegion } from './sculpture-model.js';
+import { createSculptureModel, heartAnchorPosition, meshesOf, rememberMaterials, lightRegion } from './sculpture-model.js?v=3';
 import { createVoiceReward } from './voice-reward.js';
 
 // ========== STATE ==========
@@ -642,7 +642,8 @@ const sculptureModel = createSculptureModel({
     peripheryGroup.scale.setScalar(radius);
     const middle = box ? (box.min.y + box.max.y) / 2 : 2.5;
     peripheryGroup.position.y = middle;
-    coreMesh.position.y = coreLight.position.y = middle;
+    const heart = root ? heartAnchorPosition(root, sculptureGroup) : null;
+    coreMesh.position.y = coreLight.position.y = heart?.y ?? middle;
     for (const key of ['head', 'trunk', 'arms']) {
       const bounds = new THREE.Box3();
       meshesOf(regionMeshes[key]).forEach(mesh => bounds.expandByObject(mesh));
