@@ -856,7 +856,12 @@ function renderExistingContributions() {
 
     const meta = document.createElement('div');
     meta.className = 'existing-contrib-meta';
-    meta.textContent = 'ID: ' + String(contribution.id);
+    const people = [
+      contribution.student ? 'Μαθητής: ' + contribution.student : '',
+      contribution.group ? 'Ομάδα: ' + contribution.group : ''
+    ].filter(Boolean).join(' · ');
+    const origin = contribution.syncSource ? 'Πηγή συγχρονισμού: ' + contribution.syncSource : '';
+    meta.textContent = ['ID: ' + String(contribution.id), people, origin].filter(Boolean).join(' · ');
 
     const textLabel = document.createElement('div');
     textLabel.className = 'existing-contrib-field-label';
@@ -1080,8 +1085,10 @@ window.toggleJsonPanel = function() { const panel = document.getElementById('jso
 window.exportJSON = function() { document.getElementById('json-editor').value = JSON.stringify(buildJSON(), null, 2); };
 
 // Live-only contributions (added inside this session via UI/VR). Kept
-// separate so a "restore discovery" can rebuild = GitHub JSON + live.
+// separate so restore can rebuild = Google Slides JSON + live.
 const liveContributions = [];
+let remoteContributions = [];
+let remoteSnapshotSignature = null;
 
 // Reset every region + wipe user-added inscriptions so an import can rebuild
 // the sculpture as a clean "collective memory" snapshot.
@@ -1104,29 +1111,45 @@ function resetSculptureState() {
 }
 
 // Replay one contribution into the live sculpture (lighting + inscription).
-function replayContribution(c) {
+function replayContribution(c, options = {}) {
   if (!c || !c.region || !regionsData[c.region]) return;
-  const docScore = c.docScore ?? (c.source && c.source.length > 5 ? Math.min(c.source.length / 10, 10) : 1);
+  const source = c.source || c.label || '(χωρίς πηγή)';
+  const text = c.text || c.prompt || c.label || '';
+  const numericDocScore = Number(c.docScore);
+  const docScore = Number.isFinite(numericDocScore)
+    ? numericDocScore
+    : (source.length > 5 ? Math.min(source.length / 10, 10) : 1);
   const entry = {
     id: c.id || (Date.now() + Math.random()),
     region: c.region,
-    text: c.text || c.prompt || c.label || '',
-    source: c.source || c.label || '(χωρίς πηγή)',
-    category: c.category || 'theological',
+    text,
+    source,
+    category: c.category || CATEGORY_BY_REGION[c.region] || 'theological',
     docScore,
-    timestamp: c.timestamp || new Date().toISOString()
+    timestamp: c.timestamp || new Date().toISOString(),
+    student: c.student || c.author || '',
+    group: c.group || '',
+    syncSource: c.syncSource || ''
   };
   state.contributions.push(entry);
   if (typeof loadedContribIds !== 'undefined') loadedContribIds.add(String(entry.id));
-  const rd = regionsData[c.region];
+  const rd = regionsData[entry.region];
   rd.contributions++;
   rd.docStrength += docScore;
   rd.category = entry.category;
-  applyVisualUpdate(c.region);
+
+  const allowHiddenArms = options.allowHiddenArms !== undefined
+    ? options.allowHiddenArms
+    : state.questRevealed;
+  // Remote contributions in the "Discovery" state count in the panel/stats,
+  // but the Arms remain dark until the quest is solved.
+  if (entry.region === 'arms' && !allowHiddenArms) return;
+
+  applyVisualUpdate(entry.region);
   if (entry.source || entry.text) {
-    const pos = inscriptionPosition(c.region);
+    const pos = inscriptionPosition(entry.region);
     const label = entry.source && entry.source.length > 3 ? entry.source : entry.text;
-    addInscription(`"${label.substring(0, 28)}${label.length > 28 ? '...' : ''}"`, pos, c.region);
+    addInscription('"' + label.substring(0, 28) + (label.length > 28 ? '...' : '') + '"', pos, entry.region);
   }
 }
 
@@ -1342,7 +1365,8 @@ async function loadScenarioLibrary(force) {
 async function selectScenario(entry) {
   if (!entry || !entry.compatible) return;
   try {
-    liveContributions.length = 0;
+    // Keep in-session student/VR contributions separate; restore replays them
+    // after returning from a prepared scenario to the live Slides snapshot.
     activeScenarioId = entry.id;
     const count = await applyImportedLessonData(entry.data);
     if (count === null) return;
@@ -1999,48 +2023,87 @@ function revealQuest() {
 }
 window.closeQuestReveal = function() { document.getElementById('quest-reveal').style.display = 'none'; };
 
-// ========== SHEET-PUSHED CONTRIBUTIONS (JSON library) ==========
-// The Google-Sheet → script → GitHub push writes into /contributions.json.
-// Every group that has contributed lights up its region; empty groups stay dark.
+// ========== GOOGLE-SLIDES-PUSHED CONTRIBUTIONS (JSON library) ==========
+// The Google Slides → Extensions → Apps Script → GitHub push writes into
+// /contributions.json. The remote list is a snapshot: edits and deletions
+// on the first slide are reconciled on the next poll.
+// Prepared scenarios remain separate and are loaded from sacred-blueprint.
 const loadedContribIds = new Set();
-async function loadPushedContributions() {
-  if (currentLessonData || importingLesson || activeScenarioId !== 'legacy-contributions') return;
+
+function normalizePushedContribution(c) {
+  if (!c || !c.region || !regionsData[c.region]) return null;
+  const text = String(c.text || c.prompt || c.label || '').trim();
+  const source = String(c.source || c.label || '(χωρίς πηγή)').trim();
+  const fallbackId = (c.syncSource ? String(c.syncSource) + '|' : '')
+    + c.region + '|' + text + '|' + source;
+  const numericDocScore = Number(c.docScore);
+  const docScore = Number.isFinite(numericDocScore)
+    ? numericDocScore
+    : (source.length > 5 ? Math.min(source.length / 10, 10) : 1);
+  return {
+    id: String(c.id || fallbackId),
+    region: c.region,
+    text,
+    source,
+    category: c.category || CATEGORY_BY_REGION[c.region] || 'theological',
+    docScore,
+    timestamp: c.timestamp || new Date().toISOString(),
+    student: String(c.student || c.author || '').trim(),
+    group: String(c.group || '').trim(),
+    syncSource: String(c.syncSource || '').trim()
+  };
+}
+
+function applyRemoteContributions(list, metadata, force) {
+  const next = (Array.isArray(list) ? list : [])
+    .map(normalizePushedContribution)
+    .filter(Boolean);
+  const signature = JSON.stringify(next);
+  if (!force && signature === remoteSnapshotSignature) return false;
+
+  remoteContributions = next;
+  remoteSnapshotSignature = signature;
+  const questWasRevealed = state.questRevealed;
+  resetSculptureState();
+  state.questRevealed = questWasRevealed;
+
+  remoteContributions.forEach(c => replayContribution(c, {
+    allowHiddenArms: questWasRevealed
+  }));
+  liveContributions.forEach(c => replayContribution(c, {
+    allowHiddenArms: questWasRevealed
+  }));
+
+  if (!currentLessonData && metadata && typeof metadata.topic === 'string') {
+    const topic = metadata.topic.trim();
+    if (topic) {
+      applyImportedMetadata({
+        instance: { subject: topic, year: new Date().getFullYear() }
+      });
+    }
+  }
+  updateStats();
+  updateLegend();
+  renderExistingContributions();
+  return true;
+}
+
+async function loadPushedContributions(force) {
+  if (!force && (currentLessonData || importingLesson || activeScenarioId !== 'legacy-contributions')) return false;
   try {
     const res = await fetch('contributions.json?ts=' + Date.now(), { cache: 'no-store' });
-    if (!res.ok) return;
-    if (currentLessonData || importingLesson) return;
+    if (!res.ok) return false;
+    if (!force && (currentLessonData || importingLesson)) return false;
     const data = await res.json();
     const list = Array.isArray(data) ? data : (data.contributions || []);
-    list.forEach((c, i) => {
-      if (!c || !c.region || !regionsData[c.region]) return;
-      const cid = String(c.id || (c.region + '|' + (c.text || '') + '|' + (c.source || '')));
-      if (loadedContribIds.has(cid)) return;
-      loadedContribIds.add(cid);
-      const docScore = c.docScore ?? (c.source && c.source.length > 5 ? Math.min(c.source.length / 10, 10) : 1);
-      state.contributions.push({
-        id: cid,
-        region: c.region,
-        text: c.text || c.prompt || c.label || '',
-        source: c.source || c.label || '(χωρίς πηγή)',
-        category: c.category || 'theological',
-        docScore,
-        timestamp: c.timestamp || new Date().toISOString()
-      });
-      const rd = regionsData[c.region];
-      rd.contributions++;
-      rd.docStrength += docScore;
-      rd.category = c.category || rd.category || 'theological';
-      // Arms stay dark until the student solves the quest
-      if (c.region === 'arms' && !state.questRevealed) return;
-      applyVisualUpdate(c.region);
-      if (c.source && c.text) {
-        const pos = inscriptionPosition(c.region);
-        addInscription(`"${c.source.substring(0, 28)}${c.source.length > 28 ? '...' : ''}"`, pos, c.region);
-      }
-    });
-    updateStats(); updateLegend(); renderExistingContributions();
-  } catch (e) { console.warn('contributions.json not available yet:', e); }
+    applyRemoteContributions(list, data, !!force);
+    return true;
+  } catch (e) {
+    console.warn('contributions.json not available yet:', e);
+    return false;
+  }
 }
+
 if (studioPreviewDataUrl) {
   fetch(studioPreviewDataUrl, { cache: 'no-store' })
     .then(res => { if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
@@ -2048,41 +2111,47 @@ if (studioPreviewDataUrl) {
     .catch(error => console.warn('Studio Sculpture preview failed:', error));
 } else {
   loadPushedContributions();
-  // Poll every 30s only for the live GitHub-backed lesson.
+  // Poll every 30s only for the live Google-Slides-backed lesson.
   setInterval(loadPushedContributions, 30000);
 }
 
 // ========== RESTORE POINT (Discovery Mode) ==========
-// Επαναφέρει το γλυπτό στη «συλλογική μνήμη» από το GitHub
+// Επιστρέφει από ένα έτοιμο scenario στο ζωντανό snapshot του Google Slides
 // (public/contributions.json) και ξαναπαίζει όσες συνεισφορές
-// προστέθηκαν ζωντανά σε αυτή τη συνεδρία (μέσω UI ή VR).
+// προστέθηκαν σε αυτή τη συνεδρία μέσω UI ή VR.
 window.restoreDiscovery = async function() {
+  const previousLesson = currentLessonData;
+  const previousScenarioId = activeScenarioId;
+  const previousQuest = state.questRevealed;
+  const previousContributions = state.contributions.map(c => ({ ...c }));
+
   try {
-    if (currentLessonData) {
-      const additions = [...liveContributions];
-      await applyImportedLessonData(currentLessonData);
-      additions.forEach(c => {
-        if (!loadedContribIds.has(String(c.id))) replayContribution(c);
-      });
-      liveContributions.length = 0;
-      liveContributions.push(...additions);
-      updateStats(); updateLegend();
-      return;
-    }
+    currentLessonData = null;
     activeScenarioId = 'legacy-contributions';
+    state.questRevealed = false;
+    const loaded = await loadPushedContributions(true);
+    if (!loaded) throw new Error('Δεν φορτώθηκε το contributions.json');
+
     renderScenarioLibrary();
-    resetSculptureState();
-    // Re-fetch fresh copy from GitHub-pushed file
-    await loadPushedContributions();
-    // Replay in-session live additions on top of GitHub state
-    liveContributions.forEach(c => {
-      const cid = String(c.id);
-      if (loadedContribIds.has(cid)) return;
-      replayContribution(c);
-    });
-    updateStats(); updateLegend();
-    if (typeof wristUI !== 'undefined' && wristUI) { try { wristUI.redraw(); } catch(_) {} }
+    updateStats();
+    updateLegend();
+    if (typeof wristUI !== 'undefined' && wristUI) {
+      try { wristUI.redraw(); } catch (_) {}
+    }
   } catch (e) {
+    currentLessonData = previousLesson;
+    activeScenarioId = previousScenarioId;
+    state.questRevealed = previousQuest;
+    if (previousLesson) {
+      try { await applyImportedLessonData(previousLesson); } catch (_) {}
+    } else {
+      resetSculptureState();
+      previousContributions.forEach(c => replayContribution(c, {
+        allowHiddenArms: previousQuest
+      }));
+      updateStats();
+      updateLegend();
+    }
     alert('❌ Αποτυχία επαναφοράς: ' + e.message);
   }
 };
