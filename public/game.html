@@ -195,6 +195,41 @@ body { overflow: hidden; background: #0a0a0f; font-family: 'Segoe UI', Tahoma, G
   display: block; margin: 16px auto 0; background: linear-gradient(135deg, #1a4a2c, #2c7a5c);
   border: none; border-radius: 6px; color: #eaffef; padding: 9px 22px; font-size: 12px; cursor: pointer; letter-spacing: 1px;
 }
+
+/* ===== MINIMAL CLASSROOM VIEWPORT =====
+   Keep the sculpture visible; operational UI remains available through
+   the compact toolbar and explicit pop-up panels. The VR wrist UI is
+   intentionally not affected by these desktop overlays. */
+#top-bar,
+#legend,
+#stats,
+#controls,
+#quest-hint {
+  display: none !important;
+}
+#toggle-row {
+  top: 12px;
+  right: 12px;
+  z-index: 30;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  max-width: min(100vw - 24px, 520px);
+}
+#toggle-row .toggle-btn {
+  padding: 7px 10px;
+  font-size: 10px;
+}
+#contrib-panel,
+#asset-panel,
+#asset-edit-panel,
+#json-panel,
+#quest-reveal {
+  z-index: 40;
+}
+#contrib-panel {
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.38);
+}
+
 </style>
 </head>
 <body>
@@ -306,6 +341,9 @@ body { overflow: hidden; background: #0a0a0f; font-family: 'Segoe UI', Tahoma, G
         <input type="file" accept="application/json,.json" style="display:none;" onchange="loadJsonFile(event)" />
       </label>
     </div>
+    <div class="json-btn-row" style="margin-top:8px;">
+      <button class="json-btn secondary" onclick="restoreDiscovery()">🔄 ΕΠΑΝΑΦΟΡΑ DISCOVERY</button>
+    </div>
     <div class="scenario-storage-note">📌 Οι Contributions από το UI/VR μένουν στη μνήμη της τρέχουσας συνεδρίας. Το «ΑΠΟΘΗΚΕΥΣΗ» κατεβάζει το JSON στον υπολογιστή· το GitHub contributions.json ενημερώνεται εξωτερικά.</div>
   </div>
 
@@ -335,7 +373,6 @@ body { overflow: hidden; background: #0a0a0f; font-family: 'Segoe UI', Tahoma, G
 
   <div id="vr-btn-container">
     <button id="vr-btn" onclick="enterVR()">🥽 ΕΙΣΟΔΟΣ ΣΕ VR</button>
-    <button id="restore-btn" onclick="restoreDiscovery()" title="Επαναφορά στη συλλογική μνήμη (GitHub) + όσα προστέθηκαν ζωντανά" style="margin-top:8px;display:block;width:100%;padding:10px 14px;background:linear-gradient(135deg,#1a3a2e,#0e6b4a);color:#c8ffe4;border:1px solid #3ad39a;border-radius:8px;font-size:12px;letter-spacing:1.5px;cursor:pointer;">🔄 ΕΠΑΝΑΦΟΡΑ DISCOVERY</button>
   </div>
 
   <div id="quest-hint" class="hud-panel">
