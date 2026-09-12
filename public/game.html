@@ -2133,6 +2133,9 @@ window.restoreDiscovery = async function() {
     if (!loaded) throw new Error('Δεν φορτώθηκε το contributions.json');
 
     renderScenarioLibrary();
+    setScenarioLibraryStatus('✅ Επαναφέρθηκε το Google Slides snapshot · ' + remoteContributions.length + ' contributions.');
+    const jsonEditor = document.getElementById('json-editor');
+    if (jsonEditor) jsonEditor.value = JSON.stringify(buildJSON(), null, 2);
     updateStats();
     updateLegend();
     if (typeof wristUI !== 'undefined' && wristUI) {
