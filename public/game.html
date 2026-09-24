@@ -456,6 +456,7 @@ const regionsData = {
   periphery:{ name: 'Περιφέρεια',   color: 0x4a5a6a, emissive: 0x10151a, contributions: 0, docStrength: 0, category: null, label: 'Το ιστορικό πλαίσιο' },
   core:     { name: 'Εσωτ. Πυρήνας', color: 0xffaa44, emissive: 0x331100, contributions: 0, docStrength: 0, category: null, label: 'Η ουσία και η κινητήριος δύναμη' }
 };
+const defaultRegionLabels = Object.fromEntries(Object.entries(regionsData).map(([key, data]) => [key, { name: data.name, label: data.label }]));
 
 const categoryColors = {
   theological: 0x8866ff, ethical: 0x66ff88, historical: 0xffaa44, philosophical: 0x44aaff
