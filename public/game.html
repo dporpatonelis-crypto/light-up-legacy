@@ -409,8 +409,8 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
-import { installSculpturePicker } from './sculpture-picker.js';
-import { createSculptureModel, heartAnchorPosition, meshesOf, rememberMaterials, lightRegion } from './sculpture-model.js?v=3';
+import { installSculpturePicker } from './sculpture-picker.js?v=3';
+import { createSculptureModel, heartAnchorPosition, meshesOf, rememberMaterials, lightRegion } from './sculpture-model.js?v=4';
 import { createVoiceReward } from './voice-reward.js';
 
 // ========== STATE ==========
@@ -633,7 +633,14 @@ const fallbackRegions = { head: headMesh, trunk: trunkMesh, arms: [leftArm, righ
 Object.values(regionMeshes).flatMap(meshesOf).forEach(rememberMaterials);
 const sculptureModel = createSculptureModel({
   parent: sculptureGroup, regions: regionMeshes, fallback: fallbackRegions, halo,
-  onChange(root) {
+  onChange(root, modelConfig) {
+    for (const [key, data] of Object.entries(regionsData)) {
+      const fallback = defaultRegionLabels[key];
+      const label = modelConfig?.regionLabels?.[key];
+      data.name = label || fallback.name;
+      data.label = label || fallback.label;
+    }
+    updateLegend();
     voiceReward.attach(root ? regionMeshes.head : null);
     const box = root ? new THREE.Box3().setFromObject(root) : null;
     const size = box?.getSize(new THREE.Vector3());
@@ -644,7 +651,7 @@ const sculptureModel = createSculptureModel({
     peripheryGroup.position.y = middle;
     const heart = root ? heartAnchorPosition(root, sculptureGroup) : null;
     coreMesh.position.y = coreLight.position.y = heart?.y ?? middle;
-    for (const key of ['head', 'trunk', 'arms']) {
+    for (const key of ['head', 'trunk', 'arms', 'base', 'periphery', 'core']) {
       const bounds = new THREE.Box3();
       meshesOf(regionMeshes[key]).forEach(mesh => bounds.expandByObject(mesh));
       if (regionLights[key]) regionLights[key].position.copy(bounds.getCenter(new THREE.Vector3())).add(new THREE.Vector3(0, 0, 1));

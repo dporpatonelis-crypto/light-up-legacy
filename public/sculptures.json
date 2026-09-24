@@ -42,6 +42,31 @@
           "arms": ["ReadyPlayerMe_arms"]
         }
       }
+    },
+    {
+      "id": "tree-revelation",
+      "name": "Δέντρο της Αποκάλυψης",
+      "description": "Έξι ανεξάρτητα φωτιζόμενες περιοχές: core — Άκτιστες Ενέργειες του Θεού; trunk — Ενανθρώπηση του Χριστού; base — Αγία Γραφή / Γραφές; arms — Άγιοι & Βίωμα; periphery — Κτίση και Ιστορία; head — Θεογνωσία / Γνώση του Θεού.",
+      "sculpture": {
+        "url": "./models/tree-revelation-regions.glb",
+        "height": 4.4,
+        "regions": {
+          "head": ["Tree_revelation_head"],
+          "trunk": ["Tree_revelation_trunk"],
+          "arms": ["Tree_revelation_arms"],
+          "base": ["Tree_revelation_base"],
+          "periphery": ["Tree_revelation_periphery"],
+          "core": ["Tree_revelation_core"]
+        },
+        "regionLabels": {
+          "base": "Αγία Γραφή / Γραφές",
+          "trunk": "Ενανθρώπηση του Χριστού",
+          "arms": "Άγιοι & Βίωμα",
+          "head": "Θεογνωσία / Γνώση του Θεού",
+          "periphery": "Κτίση και Ιστορία",
+          "core": "Άκτιστες Ενέργειες του Θεού"
+        }
+      }
     }
   ]
 }

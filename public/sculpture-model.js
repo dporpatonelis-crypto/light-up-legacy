@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
+const MODEL_REGION_KEYS = Object.freeze(['head', 'trunk', 'arms', 'base', 'periphery', 'core']);
+
 export function meshesOf(value) {
   const meshes = [];
   for (const root of Array.isArray(value) ? value : [value]) {
@@ -69,6 +71,7 @@ export function disposeModel(root) {
 // Load and validate before committing: a failed or superseded request never replaces the sculpture.
 export function createSculptureModel({ parent, regions, fallback, halo, onChange }) {
   const loader = new GLTFLoader();
+  const fallbackByRegion = Object.fromEntries(MODEL_REGION_KEYS.map(key => [key, fallback?.[key] ?? regions?.[key]]));
   let generation = 0, current = null, config = null;
   async function prepare(request) {
     const ticket = ++generation;
@@ -79,23 +82,37 @@ export function createSculptureModel({ parent, regions, fallback, halo, onChange
       if (typeof request.url !== 'string' || !request.url.trim()) throw new Error('sculpture.url is required');
       const height = request.height ?? 4.4;
       if (!Number.isFinite(height) || height < 0.5 || height > 8) throw new Error('sculpture.height must be 0.5–8');
-      normalized = { url: request.url, height, regions: {} };
+      normalized = { url: request.url, height, regions: {}, regionLabels: {} };
+      const requestedKeys = Object.keys(request.regions ?? {});
+      const unknownKeys = requestedKeys.filter(key => !MODEL_REGION_KEYS.includes(key));
+      if (unknownKeys.length) throw new Error(`Unknown sculpture regions: ${unknownKeys.join(', ')}`);
+      if (!requestedKeys.length) throw new Error('At least one sculpture region is required');
       const names = new Set();
-      for (const key of ['head', 'trunk', 'arms']) {
+      for (const key of MODEL_REGION_KEYS) {
         const list = request.regions?.[key];
-        if (!Array.isArray(list) || !list.length || list.some(n => typeof n !== 'string' || !n)) throw new Error(`Missing sculpture.regions.${key}`);
+        if (list === undefined) continue;
+        if (!Array.isArray(list) || !list.length || list.some(n => typeof n !== 'string' || !n.trim())) throw new Error(`Invalid sculpture.regions.${key}`);
         for (const name of list) {
           if (names.has(name)) throw new Error(`Region name mapped twice: ${name}`);
           names.add(name);
         }
         normalized.regions[key] = [...list];
       }
+      const labels = request.regionLabels ?? {};
+      if (typeof labels !== 'object' || Array.isArray(labels)) throw new Error('sculpture.regionLabels must be an object');
+      for (const [key, label] of Object.entries(labels)) {
+        if (!MODEL_REGION_KEYS.includes(key) || !normalized.regions[key]) throw new Error(`Label provided for unmapped region: ${key}`);
+        if (typeof label !== 'string' || !label.trim()) throw new Error(`Invalid sculpture.regionLabels.${key}`);
+        normalized.regionLabels[key] = label.trim();
+      }
       root = (await loader.loadAsync(request.url)).scene;
       try {
         const claimed = new Set();
-        for (const key of ['head', 'trunk', 'arms']) {
+        for (const key of MODEL_REGION_KEYS) {
+          const regionNames = normalized.regions[key];
+          if (!regionNames) continue;
           mapped[key] = [];
-          for (const name of normalized.regions[key]) {
+          for (const name of regionNames) {
             const matches = [];
             root.traverse(node => { if (node.name === name) matches.push(node); });
             if (matches.length !== 1) throw new Error(`Expected one GLB node named ${name}`);
@@ -134,14 +151,15 @@ export function createSculptureModel({ parent, regions, fallback, halo, onChange
       if (ticket !== generation) { disposeModel(root); return false; }
       if (current) { parent.remove(current); disposeModel(current); }
       current = root; config = normalized;
-      for (const key of ['head', 'trunk', 'arms']) {
-        meshesOf(fallback[key]).forEach(mesh => { mesh.visible = !root; });
-        regions[key] = root ? mapped[key] : fallback[key];
+      for (const key of MODEL_REGION_KEYS) {
+        const usesModelRegion = Boolean(root && normalized?.regions?.[key]);
+        meshesOf(fallbackByRegion[key]).forEach(mesh => { mesh.visible = !usesModelRegion; });
+        regions[key] = usesModelRegion ? mapped[key] : fallbackByRegion[key];
       }
       halo.visible = !root;
       if (root) parent.add(root);
       parent.updateMatrixWorld(true);
-      onChange?.(root);
+      onChange?.(root, normalized);
       return true;
     };
   }
