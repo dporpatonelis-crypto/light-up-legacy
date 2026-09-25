@@ -1,88 +1,103 @@
 {
   "_comment": "Ενημερώνεται από Google Slides → Extensions → Apps Script.",
   "version": 2,
-  "topic": "δόγμα και βίωμα",
+  "topic": "ΟΝΤΟΛΟΓΙΚΟΣ ΧΑΡΤΗΣ ΤΗΣ ΑΠΟΚΑΛΥΨΗΣ",
   "source": {
     "type": "google-slides",
     "presentationId": "1kmnmtbIiGHRrPHlaKNaJ_QJPtuPZXSzGALTppAGILY0",
-    "slideObjectId": "christ_events_response_board_v1",
-    "syncedAt": "2026-09-25T05:32:53.908Z"
+    "slideObjectId": "h1dcf0c72ee7ccd5d_0_0",
+    "syncedAt": "2026-09-25T06:16:51.297Z"
   },
   "contributions": [
     {
-      "id": "slides:1kmnmtbIiGHRrPHlaKNaJ_QJPtuPZXSzGALTppAGILY0:christ_event_birth_significance",
+      "id": "slides:1kmnmtbIiGHRrPHlaKNaJ_QJPtuPZXSzGALTppAGILY0:h1dcf0c72ee7ccd5d_0_13",
       "syncSource": "google-slides:dogma-vioma",
       "presentationId": "1kmnmtbIiGHRrPHlaKNaJ_QJPtuPZXSzGALTppAGILY0",
-      "slideObjectId": "christ_events_response_board_v1",
-      "elementObjectId": "christ_event_birth_significance",
+      "slideObjectId": "h1dcf0c72ee7ccd5d_0_0",
+      "elementObjectId": "h1dcf0c72ee7ccd5d_0_13",
       "region": "head",
-      "text": "Πάθος: υπερηφάνεια / αυτοθέωση\nΘεραπεία: ταπείνωση του νοός",
+      "text": "Θεογνωσία / Γνώση του Θεού\nΟ τελικός σκοπός στον οποίο οδηγούν όλες οι θεοφάνειες: ο φωτισμός του νοός και η προσωπική ένωση με τον Θεό (θέωση).",
       "source": "Google Slides · Κεφαλή",
       "student": "",
       "group": "",
       "category": "theological",
       "docScore": 2.2,
-      "timestamp": "2026-09-25T05:32:53.908Z"
+      "timestamp": "2026-09-25T06:16:51.297Z"
     },
     {
-      "id": "slides:1kmnmtbIiGHRrPHlaKNaJ_QJPtuPZXSzGALTppAGILY0:christ_event_teaching_significance",
+      "id": "slides:1kmnmtbIiGHRrPHlaKNaJ_QJPtuPZXSzGALTppAGILY0:h1dcf0c72ee7ccd5d_0_15",
       "syncSource": "google-slides:dogma-vioma",
       "presentationId": "1kmnmtbIiGHRrPHlaKNaJ_QJPtuPZXSzGALTppAGILY0",
-      "slideObjectId": "christ_events_response_board_v1",
-      "elementObjectId": "christ_event_teaching_significance",
+      "slideObjectId": "h1dcf0c72ee7ccd5d_0_0",
+      "elementObjectId": "h1dcf0c72ee7ccd5d_0_15",
       "region": "arms",
-      "text": "Πάθος: έλλειψη φιλανθρωπίας\nΘεραπεία: έμπρακτη αγάπη",
+      "text": "Άγιοι & Βίωμα\nΗ Αποκάλυψη μετατρέπεται σε ζώσα πράξη, μαρτυρία και μεταμόρφωση μέσα στον χρόνο.",
       "source": "Google Slides · Χέρια",
       "student": "",
       "group": "",
-      "category": "ethical",
+      "category": "theological",
       "docScore": 2.1,
-      "timestamp": "2026-09-25T05:32:53.908Z"
+      "timestamp": "2026-09-25T06:16:51.297Z"
     },
     {
-      "id": "slides:1kmnmtbIiGHRrPHlaKNaJ_QJPtuPZXSzGALTppAGILY0:christ_event_miracles_significance",
+      "id": "slides:1kmnmtbIiGHRrPHlaKNaJ_QJPtuPZXSzGALTppAGILY0:h1dcf0c72ee7ccd5d_0_17",
       "syncSource": "google-slides:dogma-vioma",
       "presentationId": "1kmnmtbIiGHRrPHlaKNaJ_QJPtuPZXSzGALTppAGILY0",
-      "slideObjectId": "christ_events_response_board_v1",
-      "elementObjectId": "christ_event_miracles_significance",
+      "slideObjectId": "h1dcf0c72ee7ccd5d_0_0",
+      "elementObjectId": "h1dcf0c72ee7ccd5d_0_17",
       "region": "trunk",
-      "text": "Πάθος: φιληδονία / ανάγκη\nΘεραπεία: εκούσια εγκράτεια",
+      "text": "Ενανθρώπηση του Χριστού\nΤο ιστορικό και θεολογικό κέντρο της Αποκάλυψης, όπου ο Αχώρητος χωρείται στην κτιστή φύση.",
       "source": "Google Slides · Κορμός",
       "student": "",
       "group": "",
-      "category": "philosophical",
+      "category": "theological",
       "docScore": 2.2,
-      "timestamp": "2026-09-25T05:32:53.908Z"
+      "timestamp": "2026-09-25T06:16:51.297Z"
     },
     {
-      "id": "slides:1kmnmtbIiGHRrPHlaKNaJ_QJPtuPZXSzGALTppAGILY0:christ_event_passion_significance",
+      "id": "slides:1kmnmtbIiGHRrPHlaKNaJ_QJPtuPZXSzGALTppAGILY0:h1dcf0c72ee7ccd5d_0_19",
       "syncSource": "google-slides:dogma-vioma",
       "presentationId": "1kmnmtbIiGHRrPHlaKNaJ_QJPtuPZXSzGALTppAGILY0",
-      "slideObjectId": "christ_events_response_board_v1",
-      "elementObjectId": "christ_event_passion_significance",
+      "slideObjectId": "h1dcf0c72ee7ccd5d_0_0",
+      "elementObjectId": "h1dcf0c72ee7ccd5d_0_19",
       "region": "base",
-      "text": "Πάθος: πλάνη / αποπροσανατολισμός\nΘεραπεία: μετάνοια",
+      "text": "Αγία Γραφή / Γραφές\nΤο καταγεγραμμένο θεμέλιο της Αποκάλυψης και η προοδευτική φανέρωση στην Παλαιά και Καινή Διαθήκη.",
       "source": "Google Slides · Βάση",
       "student": "",
       "group": "",
       "category": "theological",
       "docScore": 2,
-      "timestamp": "2026-09-25T05:32:53.908Z"
+      "timestamp": "2026-09-25T06:16:51.297Z"
     },
     {
-      "id": "slides:1kmnmtbIiGHRrPHlaKNaJ_QJPtuPZXSzGALTppAGILY0:christ_event_resurrection_significance",
+      "id": "slides:1kmnmtbIiGHRrPHlaKNaJ_QJPtuPZXSzGALTppAGILY0:h1dcf0c72ee7ccd5d_0_21",
       "syncSource": "google-slides:dogma-vioma",
       "presentationId": "1kmnmtbIiGHRrPHlaKNaJ_QJPtuPZXSzGALTppAGILY0",
-      "slideObjectId": "christ_events_response_board_v1",
-      "elementObjectId": "christ_event_resurrection_significance",
+      "slideObjectId": "h1dcf0c72ee7ccd5d_0_0",
+      "elementObjectId": "h1dcf0c72ee7ccd5d_0_21",
       "region": "core",
-      "text": "Πάθος: αχαριστία / απομόνωση\nΘεραπεία: ευχαριστία και θέωση",
+      "text": "Άκτιστες Ενέργειες του Θεού\nΗ άκτιστη πηγή της χάριτος. Ο Θεός παραμένει ακατάληπτος κατά την ουσία, αλλά γίνεται γνωστός, μεθεκτός και ορατός κατά τις ενέργειές Του.",
       "source": "Google Slides · Εσωτερικός Πυρήνας",
       "student": "",
       "group": "",
       "category": "theological",
       "docScore": 3.4,
-      "timestamp": "2026-09-25T05:32:53.908Z"
+      "timestamp": "2026-09-25T06:16:51.297Z"
+    },
+    {
+      "id": "slides:1kmnmtbIiGHRrPHlaKNaJ_QJPtuPZXSzGALTppAGILY0:h1dcf0c72ee7ccd5d_periphery_text",
+      "syncSource": "google-slides:dogma-vioma",
+      "presentationId": "1kmnmtbIiGHRrPHlaKNaJ_QJPtuPZXSzGALTppAGILY0",
+      "slideObjectId": "h1dcf0c72ee7ccd5d_0_0",
+      "elementObjectId": "h1dcf0c72ee7ccd5d_periphery_text",
+      "region": "periphery",
+      "text": "Κτίση και Ιστορία\nΟ υλικός χώρος και ο χρόνος που φιλοξενούν τις θεοφάνειες, τα σύμβολα και τις «γέφυρες» προς το Άκτιστο.",
+      "source": "Google Slides · Περιφέρεια",
+      "student": "",
+      "group": "",
+      "category": "theological",
+      "docScore": 2.6,
+      "timestamp": "2026-09-25T06:16:51.297Z"
     }
   ]
 }
