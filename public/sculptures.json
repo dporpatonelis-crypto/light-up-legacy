@@ -67,6 +67,31 @@
           "core": "Άκτιστες Ενέργειες του Θεού"
         }
       }
+    },
+    {
+      "id": "christ-relief",
+      "name": "Ανάγλυφο Χριστού",
+      "description": "Ανάγλυφο Χριστού με έξι ανεξάρτητα φωτιζόμενες περιοχές και τις αντίστοιχες θεολογικές συνεισφορές.",
+      "sculpture": {
+        "url": "./models/christ-relief-regions.glb",
+        "height": 4.4,
+        "regions": {
+          "head": ["Christ_relief_head"],
+          "trunk": ["Christ_relief_trunk"],
+          "arms": ["Christ_relief_arms"],
+          "base": ["Christ_relief_base"],
+          "periphery": ["Christ_relief_periphery"],
+          "core": ["Christ_relief_core"]
+        },
+        "regionLabels": {
+          "base": "Αγία Γραφή / Γραφές",
+          "trunk": "Ενανθρώπηση του Χριστού",
+          "arms": "Άγιοι & Βίωμα",
+          "head": "Θεογνωσία / Γνώση του Θεού",
+          "periphery": "Κτίση και Ιστορία",
+          "core": "Άκτιστες Ενέργειες του Θεού"
+        }
+      }
     }
   ]
 }
