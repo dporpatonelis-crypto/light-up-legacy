@@ -1,103 +1,88 @@
 {
   "_comment": "Ενημερώνεται από Google Slides → Extensions → Apps Script.",
   "version": 2,
-  "topic": "ΟΝΤΟΛΟΓΙΚΟΣ ΧΑΡΤΗΣ ΤΗΣ ΑΠΟΚΑΛΥΨΗΣ",
+  "topic": "Η ΕΝΝΟΙΑ ΤΗΣ ΠΙΣΤΗΣ",
   "source": {
     "type": "google-slides",
     "presentationId": "1kmnmtbIiGHRrPHlaKNaJ_QJPtuPZXSzGALTppAGILY0",
-    "slideObjectId": "h1dcf0c72ee7ccd5d_0_0",
-    "syncedAt": "2026-09-25T06:24:12.099Z"
+    "slideObjectId": "faith_model_board_v1",
+    "syncedAt": "2026-09-28T05:28:05.200Z"
   },
   "contributions": [
     {
-      "id": "slides:1kmnmtbIiGHRrPHlaKNaJ_QJPtuPZXSzGALTppAGILY0:h1dcf0c72ee7ccd5d_0_13",
+      "id": "slides:1kmnmtbIiGHRrPHlaKNaJ_QJPtuPZXSzGALTppAGILY0:faith_model_board_v1_e13",
       "syncSource": "google-slides:dogma-vioma",
       "presentationId": "1kmnmtbIiGHRrPHlaKNaJ_QJPtuPZXSzGALTppAGILY0",
-      "slideObjectId": "h1dcf0c72ee7ccd5d_0_0",
-      "elementObjectId": "h1dcf0c72ee7ccd5d_0_13",
+      "slideObjectId": "faith_model_board_v1",
+      "elementObjectId": "faith_model_board_v1_e13",
       "region": "head",
-      "text": "Θεογνωσία / Γνώση του Θεού\nΟ τελικός σκοπός στον οποίο οδηγούν όλες οι θεοφάνειες: ο φωτισμός του νοός και η προσωπική ένωση με τον Θεό (θέωση).",
+      "text": "Δόγμα και περιεχόμενο\nΤο δόγμα και το περιεχόμενο της πίστης.",
       "source": "Google Slides · Κεφαλή",
       "student": "",
       "group": "",
       "category": "theological",
       "docScore": 2.2,
-      "timestamp": "2026-09-25T06:24:12.099Z"
+      "timestamp": "2026-09-28T05:28:05.200Z"
     },
     {
-      "id": "slides:1kmnmtbIiGHRrPHlaKNaJ_QJPtuPZXSzGALTppAGILY0:h1dcf0c72ee7ccd5d_0_15",
+      "id": "slides:1kmnmtbIiGHRrPHlaKNaJ_QJPtuPZXSzGALTppAGILY0:faith_model_board_v1_e15",
       "syncSource": "google-slides:dogma-vioma",
       "presentationId": "1kmnmtbIiGHRrPHlaKNaJ_QJPtuPZXSzGALTppAGILY0",
-      "slideObjectId": "h1dcf0c72ee7ccd5d_0_0",
-      "elementObjectId": "h1dcf0c72ee7ccd5d_0_15",
+      "slideObjectId": "faith_model_board_v1",
+      "elementObjectId": "faith_model_board_v1_e15",
       "region": "arms",
-      "text": "Άγιοι & Βίωμα\nΗ Αποκάλυψη μετατρέπεται σε ζώσα πράξη, μαρτυρία και μεταμόρφωση μέσα στον χρόνο.",
+      "text": "Πράξεις της πίστης\nΗ πίστη εκφράζεται στις πράξεις.",
       "source": "Google Slides · Χέρια",
       "student": "",
       "group": "",
       "category": "theological",
       "docScore": 2.1,
-      "timestamp": "2026-09-25T06:24:12.099Z"
+      "timestamp": "2026-09-28T05:28:05.200Z"
     },
     {
-      "id": "slides:1kmnmtbIiGHRrPHlaKNaJ_QJPtuPZXSzGALTppAGILY0:h1dcf0c72ee7ccd5d_0_17",
+      "id": "slides:1kmnmtbIiGHRrPHlaKNaJ_QJPtuPZXSzGALTppAGILY0:faith_model_board_v1_e17",
       "syncSource": "google-slides:dogma-vioma",
       "presentationId": "1kmnmtbIiGHRrPHlaKNaJ_QJPtuPZXSzGALTppAGILY0",
-      "slideObjectId": "h1dcf0c72ee7ccd5d_0_0",
-      "elementObjectId": "h1dcf0c72ee7ccd5d_0_17",
+      "slideObjectId": "faith_model_board_v1",
+      "elementObjectId": "faith_model_board_v1_e17",
       "region": "trunk",
-      "text": "Ενανθρώπηση του Χριστού\nΤο ιστορικό και θεολογικό κέντρο της Αποκάλυψης, όπου ο Αχώρητος χωρείται στην κτιστή φύση.",
+      "text": "Σιγουριά και πεποίθηση\nΗ σιγουριά και η πεποίθηση αποτελούν τον κορμό της πίστης.",
       "source": "Google Slides · Κορμός",
       "student": "",
       "group": "",
       "category": "theological",
       "docScore": 2.2,
-      "timestamp": "2026-09-25T06:24:12.099Z"
+      "timestamp": "2026-09-28T05:28:05.200Z"
     },
     {
-      "id": "slides:1kmnmtbIiGHRrPHlaKNaJ_QJPtuPZXSzGALTppAGILY0:h1dcf0c72ee7ccd5d_0_19",
+      "id": "slides:1kmnmtbIiGHRrPHlaKNaJ_QJPtuPZXSzGALTppAGILY0:faith_model_board_v1_e19",
       "syncSource": "google-slides:dogma-vioma",
       "presentationId": "1kmnmtbIiGHRrPHlaKNaJ_QJPtuPZXSzGALTppAGILY0",
-      "slideObjectId": "h1dcf0c72ee7ccd5d_0_0",
-      "elementObjectId": "h1dcf0c72ee7ccd5d_0_19",
+      "slideObjectId": "faith_model_board_v1",
+      "elementObjectId": "faith_model_board_v1_e19",
       "region": "base",
-      "text": "Αγία Γραφή / Γραφές\nΤο καταγεγραμμένο θεμέλιο της Αποκάλυψης και η προοδευτική φανέρωση στην Παλαιά και Καινή Διαθήκη.",
+      "text": "Αποδοχή\nΗ αποδοχή ως βάση της πίστης.",
       "source": "Google Slides · Βάση",
       "student": "",
       "group": "",
       "category": "theological",
       "docScore": 2,
-      "timestamp": "2026-09-25T06:24:12.099Z"
+      "timestamp": "2026-09-28T05:28:05.200Z"
     },
     {
-      "id": "slides:1kmnmtbIiGHRrPHlaKNaJ_QJPtuPZXSzGALTppAGILY0:h1dcf0c72ee7ccd5d_0_21",
+      "id": "slides:1kmnmtbIiGHRrPHlaKNaJ_QJPtuPZXSzGALTppAGILY0:faith_model_board_v1_e21",
       "syncSource": "google-slides:dogma-vioma",
       "presentationId": "1kmnmtbIiGHRrPHlaKNaJ_QJPtuPZXSzGALTppAGILY0",
-      "slideObjectId": "h1dcf0c72ee7ccd5d_0_0",
-      "elementObjectId": "h1dcf0c72ee7ccd5d_0_21",
-      "region": "core",
-      "text": "Άκτιστες Ενέργειες του Θεού\nΗ άκτιστη πηγή της χάριτος. Ο Θεός παραμένει ακατάληπτος κατά την ουσία, αλλά γίνεται γνωστός, μεθεκτός και ορατός κατά τις ενέργειές Του.",
-      "source": "Google Slides · Εσωτερικός Πυρήνας",
-      "student": "",
-      "group": "",
-      "category": "theological",
-      "docScore": 3.4,
-      "timestamp": "2026-09-25T06:24:12.099Z"
-    },
-    {
-      "id": "slides:1kmnmtbIiGHRrPHlaKNaJ_QJPtuPZXSzGALTppAGILY0:h1dcf0c72ee7ccd5d_periphery_text",
-      "syncSource": "google-slides:dogma-vioma",
-      "presentationId": "1kmnmtbIiGHRrPHlaKNaJ_QJPtuPZXSzGALTppAGILY0",
-      "slideObjectId": "h1dcf0c72ee7ccd5d_0_0",
-      "elementObjectId": "h1dcf0c72ee7ccd5d_periphery_text",
+      "slideObjectId": "faith_model_board_v1",
+      "elementObjectId": "faith_model_board_v1_e21",
       "region": "periphery",
-      "text": "Κτίση και Ιστορία\nΟ υλικός χώρος και ο χρόνος που φιλοξενούν τις θεοφάνειες, τα σύμβολα και τις «γέφυρες» προς το Άκτιστο.",
+      "text": "Θεία χάρη και ιδεολογία\nΗ θεία χάρη που εκπέμπει, αλλά και η πιθανότητα η πίστη να γίνει ιδεολογία.",
       "source": "Google Slides · Περιφέρεια",
       "student": "",
       "group": "",
       "category": "theological",
       "docScore": 2.6,
-      "timestamp": "2026-09-25T06:24:12.099Z"
+      "timestamp": "2026-09-28T05:28:05.200Z"
     }
   ]
 }
