@@ -92,6 +92,31 @@
           "core": "Άκτιστες Ενέργειες του Θεού"
         }
       }
+    },
+    {
+      "id": "continuity-tree-testaments",
+      "name": "Δέντρο συνέχειας Π. και Κ. Διαθήκης",
+      "description": "Συμβολικό δέντρο της συνέχειας Παλαιάς και Καινής Διαθήκης, με έξι φωτιζόμενα μέρη.",
+      "sculpture": {
+        "url": "./models/continuity-tree-regions.glb",
+        "height": 4.4,
+        "regions": {
+          "base": ["Continuity_tree_base"],
+          "trunk": ["Continuity_tree_trunk"],
+          "arms": ["Continuity_tree_arms"],
+          "head": ["Continuity_tree_head"],
+          "periphery": ["Continuity_tree_periphery"],
+          "core": ["Continuity_tree_core"]
+        },
+        "regionLabels": {
+          "base": "Βάση και ρίζες",
+          "trunk": "Κορμός",
+          "arms": "Κλάδοι",
+          "head": "Κορυφή",
+          "periphery": "Περιφέρεια",
+          "core": "Κέντρο"
+        }
+      }
     }
   ]
 }
